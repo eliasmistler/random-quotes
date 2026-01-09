@@ -6,13 +6,17 @@ requires-python = ">=3.14"
 dependencies = [
     "fastapi",
     "pydantic",
+    "pydantic-settings>=2.12.0",
     "toolz",
+    "uvicorn>=0.40.0",
 ]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "pre-commit>=4.5.1",
     "pytest",
+    "ruff>=0.14.11",
 ]
 
 [tool.pytest.ini_options]

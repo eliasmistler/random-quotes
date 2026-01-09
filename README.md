@@ -29,28 +29,37 @@ The game captures the humor and creativity of crafting messages from mismatched 
 git clone <repository-url>
 cd ransom-notes
 
-# Install Python dependencies
+# Install backend dependencies
+cd backend
 uv sync
 
-# Install frontend dependencies
-cd frontend
+# Install frontend dependencies (when available)
+cd ../frontend
 npm install
 ```
 
 ### Running the Application
 
 ```bash
-# Start the backend
+# Start the backend (from backend/ directory)
+cd backend
 uv run uvicorn app.main:app --reload
 
-# Start the frontend (in another terminal)
+# Start the frontend (in another terminal, when available)
 cd frontend
 npm run dev
 ```
 
 ## Development
 
-### Commands
+### IDE Setup
+
+- [PyCharm](https://www.jetbrains.com/pycharm/) with Vue.js plugin for full-stack development
+- Vue.js devtools browser extension ([Chrome](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd) / [Firefox](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/))
+
+### Backend Commands
+
+Run from the `backend/` directory:
 
 - `uv run pytest` - Run tests
 - `uv run pre-commit run --all-files` - Run linters

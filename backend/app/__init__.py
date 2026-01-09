@@ -1,0 +1,1 @@
+"""Ransom Notes API application."""
