@@ -121,8 +121,8 @@ function getPlayerNickname(playerId: string): string {
 
         <div class="tiles-grid">
           <button
-            v-for="tile in gameStore.myTiles"
-            :key="tile"
+            v-for="(tile, index) in gameStore.myTiles"
+            :key="index"
             class="tile"
             :class="{ selected: selectedTiles.includes(tile) }"
             @click="toggleTile(tile)"
