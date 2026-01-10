@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
 
@@ -25,15 +25,38 @@ onUnmounted(() => {
   }
 })
 
+watch(
+  () => gameStore.phase,
+  (newPhase) => {
+    if (newPhase && newPhase !== 'lobby') {
+      router.push('/game')
+    }
+  },
+)
+
 function copyInviteCode() {
   if (gameStore.inviteCode) {
     navigator.clipboard.writeText(gameStore.inviteCode)
   }
 }
 
+async function handleStartGame() {
+  try {
+    await gameStore.startGame()
+    router.push('/game')
+  } catch (e) {
+    console.error('Failed to start game:', e)
+  }
+}
+
 function leaveGame() {
   gameStore.leaveGame()
   router.push('/')
+}
+
+const canStartGame = () => {
+  const minPlayers = gameStore.config?.min_players ?? 3
+  return gameStore.playerCount >= minPlayers
 }
 </script>
 
@@ -50,8 +73,15 @@ function leaveGame() {
       <p class="invite-hint">Share this code with friends to join the game</p>
     </div>
 
+    <div v-if="gameStore.error" class="error-message">
+      {{ gameStore.error }}
+    </div>
+
     <div class="players-section">
-      <h2>Players ({{ gameStore.playerCount }})</h2>
+      <h2>Players ({{ gameStore.playerCount }}/{{ gameStore.config?.max_players ?? 8 }})</h2>
+      <p class="min-players-hint" v-if="!canStartGame()">
+        Need at least {{ gameStore.config?.min_players ?? 3 }} players to start
+      </p>
       <ul class="players-list">
         <li v-for="player in gameStore.players" :key="player.id" class="player-item">
           <span class="player-name">{{ player.nickname }}</span>
@@ -62,6 +92,15 @@ function leaveGame() {
     </div>
 
     <div class="actions">
+      <button
+        v-if="gameStore.isHost"
+        @click="handleStartGame"
+        :disabled="!canStartGame() || gameStore.isLoading"
+        class="start-btn"
+      >
+        {{ gameStore.isLoading ? 'Starting...' : 'Start Game' }}
+      </button>
+      <p v-else class="waiting-text">Waiting for host to start the game...</p>
       <button @click="leaveGame" class="leave-btn">Leave Game</button>
     </div>
   </main>
@@ -188,5 +227,45 @@ h1 {
 
 .leave-btn:hover {
   background: #c82333;
+}
+
+.error-message {
+  background: #ffebee;
+  color: #c62828;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.min-players-hint {
+  color: #ff9800;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.start-btn {
+  padding: 1rem 2rem;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.start-btn:hover:not(:disabled) {
+  background: #43a047;
+}
+
+.start-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.waiting-text {
+  margin-bottom: 1rem;
+  opacity: 0.7;
+  font-style: italic;
 }
 </style>

@@ -3,6 +3,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.models.api import (
+    ActionResponse,
     CreateGameRequest,
     ErrorResponse,
     GameCreatedResponse,
@@ -10,12 +11,57 @@ from app.models.api import (
     GameStateResponse,
     JoinGameRequest,
     PlayerInfo,
+    RoundInfo,
+    SelectWinnerRequest,
+    SubmissionInfo,
+    SubmitResponseRequest,
 )
 from app.models.common import HealthResponse
-from app.services.game import add_player_to_game, create_game
+from app.models.content import load_game_content
+from app.models.game import GamePhase
+from app.services.game import (
+    add_player_to_game,
+    advance_round,
+    advance_to_judging,
+    all_submissions_in,
+    create_game,
+    select_winner,
+    start_game,
+    submit_response,
+)
 from app.services.store import get_game, get_game_by_invite_code, save_game
 
 router = APIRouter()
+
+_game_content = load_game_content()
+
+
+def _build_round_info(game, player_id: str) -> RoundInfo | None:
+    """Build round info for the current player."""
+    if game.current_round is None:
+        return None
+
+    show_submissions = game.phase in (
+        GamePhase.ROUND_JUDGING,
+        GamePhase.ROUND_RESULTS,
+    )
+
+    submissions = []
+    if show_submissions:
+        submissions = [
+            SubmissionInfo(player_id=s.player_id, response_text=s.response_text)
+            for s in game.current_round.submissions.values()
+        ]
+
+    return RoundInfo(
+        round_number=game.current_round.round_number,
+        prompt=game.current_round.prompt,
+        judge_id=game.current_round.judge_id,
+        submissions=submissions,
+        winner_id=game.current_round.winner_id,
+        has_submitted=player_id in game.current_round.submissions,
+        is_judge=player_id == game.current_round.judge_id,
+    )
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -110,7 +156,159 @@ def get_game_state(game_id: str, player_id: str) -> GameStateResponse:
         invite_code=game.invite_code,
         phase=game.phase,
         players=players_info,
-        current_round=game.current_round,
+        current_round=_build_round_info(game, player_id),
         config=game.config,
         my_tiles=player.word_tiles,
     )
+
+
+@router.post(
+    "/games/{game_id}/start",
+    response_model=ActionResponse,
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def start_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
+    """Start the game. Only the host can start the game."""
+    game = get_game(game_id)
+    if not game:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Game not found", "code": "GAME_NOT_FOUND"},
+        )
+
+    player = game.players.get(player_id)
+    if not player:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Player not found", "code": "PLAYER_NOT_FOUND"},
+        )
+
+    if not player.is_host:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "Only the host can start the game", "code": "NOT_HOST"},
+        )
+
+    try:
+        updated_game = start_game(game, _game_content)
+        save_game(updated_game)
+        return ActionResponse(success=True, message="Game started")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": str(e), "code": "CANNOT_START"},
+        ) from e
+
+
+@router.post(
+    "/games/{game_id}/submit",
+    response_model=ActionResponse,
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def submit_response_endpoint(
+    game_id: str, player_id: str, request: SubmitResponseRequest
+) -> ActionResponse:
+    """Submit a response for the current round."""
+    game = get_game(game_id)
+    if not game:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Game not found", "code": "GAME_NOT_FOUND"},
+        )
+
+    try:
+        updated_game = submit_response(game, player_id, request.tiles_used)
+
+        if all_submissions_in(updated_game):
+            updated_game = advance_to_judging(updated_game)
+
+        save_game(updated_game)
+        return ActionResponse(success=True, message="Response submitted")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": str(e), "code": "CANNOT_SUBMIT"},
+        ) from e
+
+
+@router.post(
+    "/games/{game_id}/judge",
+    response_model=ActionResponse,
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def select_winner_endpoint(
+    game_id: str, player_id: str, request: SelectWinnerRequest
+) -> ActionResponse:
+    """Judge selects the winner of the current round."""
+    game = get_game(game_id)
+    if not game:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Game not found", "code": "GAME_NOT_FOUND"},
+        )
+
+    if game.current_round is None:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "No active round", "code": "NO_ROUND"},
+        )
+
+    if player_id != game.current_round.judge_id:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "Only the judge can select a winner", "code": "NOT_JUDGE"},
+        )
+
+    try:
+        updated_game = select_winner(game, request.winner_player_id)
+        save_game(updated_game)
+        return ActionResponse(success=True, message="Winner selected")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": str(e), "code": "CANNOT_JUDGE"},
+        ) from e
+
+
+@router.post(
+    "/games/{game_id}/advance",
+    response_model=ActionResponse,
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def advance_round_endpoint(game_id: str, player_id: str) -> ActionResponse:
+    """Advance to the next round after results are shown."""
+    game = get_game(game_id)
+    if not game:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Game not found", "code": "GAME_NOT_FOUND"},
+        )
+
+    player = game.players.get(player_id)
+    if not player:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Player not found", "code": "PLAYER_NOT_FOUND"},
+        )
+
+    if not player.is_host:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "Only the host can advance the round",
+                "code": "NOT_HOST",
+            },
+        )
+
+    try:
+        updated_game = advance_round(game, _game_content)
+        save_game(updated_game)
+
+        if updated_game.phase == GamePhase.GAME_OVER:
+            return ActionResponse(success=True, message="Game over")
+        return ActionResponse(success=True, message="Next round started")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": str(e), "code": "CANNOT_ADVANCE"},
+        ) from e

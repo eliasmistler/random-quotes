@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel
 
-from app.models.game import GameConfig, GamePhase, Player, Round
+from app.models.game import GameConfig, GamePhase, Player, Prompt
 
 
 class CreateGameRequest(BaseModel):
@@ -21,7 +21,7 @@ class JoinGameRequest(BaseModel):
 class SubmitResponseRequest(BaseModel):
     """Request to submit a response for the current round."""
 
-    tile_ids: list[str]
+    tiles_used: list[str]
 
 
 class SelectWinnerRequest(BaseModel):
@@ -57,6 +57,25 @@ class PlayerInfo(BaseModel):
     is_connected: bool
 
 
+class SubmissionInfo(BaseModel):
+    """Submission information for judging phase."""
+
+    player_id: str
+    response_text: str
+
+
+class RoundInfo(BaseModel):
+    """Round information for the game state."""
+
+    round_number: int
+    prompt: Prompt
+    judge_id: str
+    submissions: list[SubmissionInfo]
+    winner_id: str | None
+    has_submitted: bool
+    is_judge: bool
+
+
 class GameStateResponse(BaseModel):
     """Full game state response for a specific player."""
 
@@ -64,9 +83,16 @@ class GameStateResponse(BaseModel):
     invite_code: str
     phase: GamePhase
     players: list[PlayerInfo]
-    current_round: Round | None
+    current_round: RoundInfo | None
     config: GameConfig
     my_tiles: list[str]
+
+
+class ActionResponse(BaseModel):
+    """Generic response for game actions."""
+
+    success: bool
+    message: str
 
 
 class ErrorResponse(BaseModel):

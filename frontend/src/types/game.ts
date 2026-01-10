@@ -1,4 +1,9 @@
-export type GamePhase = 'lobby' | 'round_submission' | 'round_judging' | 'round_results' | 'game_over'
+export type GamePhase =
+  | 'lobby'
+  | 'round_submission'
+  | 'round_judging'
+  | 'round_results'
+  | 'game_over'
 
 export interface Player {
   id: string
@@ -26,15 +31,24 @@ export interface GameConfig {
   max_players: number
 }
 
-export interface Round {
+export interface Prompt {
+  id: string
+  text: string
+}
+
+export interface SubmissionInfo {
+  player_id: string
+  response_text: string
+}
+
+export interface RoundInfo {
   round_number: number
-  prompt: {
-    id: string
-    text: string
-  }
+  prompt: Prompt
   judge_id: string
-  submissions: Record<string, unknown>
+  submissions: SubmissionInfo[]
   winner_id: string | null
+  has_submitted: boolean
+  is_judge: boolean
 }
 
 export interface GameCreatedResponse {
@@ -55,7 +69,12 @@ export interface GameStateResponse {
   invite_code: string
   phase: GamePhase
   players: PlayerInfo[]
-  current_round: Round | null
+  current_round: RoundInfo | null
   config: GameConfig
   my_tiles: string[]
+}
+
+export interface ActionResponse {
+  success: boolean
+  message: string
 }

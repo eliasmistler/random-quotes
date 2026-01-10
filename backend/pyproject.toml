@@ -7,6 +7,7 @@ dependencies = [
     "fastapi",
     "pydantic",
     "pydantic-settings>=2.12.0",
+    "pyyaml>=6.0",
     "toolz",
     "uvicorn>=0.40.0",
 ]
