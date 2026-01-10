@@ -124,7 +124,7 @@ class TestGameConfig:
         assert config.points_to_win == 5
         assert config.submission_time_seconds == 90
         assert config.judging_time_seconds == 60
-        assert config.min_players == 3
+        assert config.min_players == 2
         assert config.max_players == 8
 
     def test_game_config_custom_values(self) -> None:

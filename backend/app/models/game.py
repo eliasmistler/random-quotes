@@ -61,7 +61,7 @@ class GameConfig(BaseModel):
     points_to_win: int = 5
     submission_time_seconds: int = 90
     judging_time_seconds: int = 60
-    min_players: int = 3
+    min_players: int = 2
     max_players: int = 8
 
 
