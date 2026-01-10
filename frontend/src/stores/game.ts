@@ -50,6 +50,8 @@ export const useGameStore = defineStore('game', () => {
         },
       ]
       myTiles.value = response.player.word_tiles
+      // Fetch full game state to populate config
+      await refreshGameState()
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Unknown error'
       throw e

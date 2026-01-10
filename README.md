@@ -66,7 +66,7 @@ Run from the `backend/` directory:
 
 ### Code Style
 
-- Python: Linting and formatting with ruff (line length: 88)
+- Python: Linting and formatting with ruff (line length: 120)
 - Pre-commit hooks enforced
 
 ## License

@@ -55,7 +55,8 @@ function leaveGame() {
 }
 
 const canStartGame = () => {
-  const minPlayers = gameStore.config?.min_players ?? 3
+  // Default min_players matches backend GameConfig default (2)
+  const minPlayers = gameStore.config?.min_players ?? 2
   return gameStore.playerCount >= minPlayers
 }
 </script>
@@ -80,7 +81,7 @@ const canStartGame = () => {
     <div class="players-section">
       <h2>Players ({{ gameStore.playerCount }}/{{ gameStore.config?.max_players ?? 8 }})</h2>
       <p class="min-players-hint" v-if="!canStartGame()">
-        Need at least {{ gameStore.config?.min_players ?? 3 }} players to start
+        Need at least {{ gameStore.config?.min_players ?? 2 }} players to start
       </p>
       <ul class="players-list">
         <li v-for="player in gameStore.players" :key="player.id" class="player-item">

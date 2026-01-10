@@ -100,7 +100,7 @@ npm run format             # Run Prettier
 
 ### Code Style
 
-- **Backend**: Linting/formatting with ruff (line length: 88), pre-commit hooks enforced
+- **Backend**: Linting/formatting with ruff (line length: 120), pre-commit hooks enforced
 - **Frontend**: ESLint + Prettier enforced
 
 ## Architecture

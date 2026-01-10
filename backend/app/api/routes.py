@@ -1,5 +1,7 @@
 """API routes for the Ransom Notes application."""
 
+import logging
+
 from fastapi import APIRouter, HTTPException
 
 from app.models.api import (
@@ -32,6 +34,7 @@ from app.services.game import (
 from app.services.store import get_game, get_game_by_invite_code, save_game
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 _game_content = load_game_content()
 
@@ -169,21 +172,37 @@ def get_game_state(game_id: str, player_id: str) -> GameStateResponse:
 )
 def start_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
     """Start the game. Only the host can start the game."""
+    logger.info("Start game request: game_id=%s, player_id=%s", game_id, player_id)
+
     game = get_game(game_id)
     if not game:
+        logger.warning("Start game failed: game not found (game_id=%s)", game_id)
         raise HTTPException(
             status_code=404,
             detail={"error": "Game not found", "code": "GAME_NOT_FOUND"},
         )
 
+    logger.info(
+        "Game state: phase=%s, players=%d, min_players=%d",
+        game.phase,
+        len(game.players),
+        game.config.min_players,
+    )
+
     player = game.players.get(player_id)
     if not player:
+        logger.warning(
+            "Start game failed: player not found (game_id=%s, player_id=%s)",
+            game_id,
+            player_id,
+        )
         raise HTTPException(
             status_code=404,
             detail={"error": "Player not found", "code": "PLAYER_NOT_FOUND"},
         )
 
     if not player.is_host:
+        logger.warning("Start game failed: player is not host (player=%s)", player.nickname)
         raise HTTPException(
             status_code=403,
             detail={"error": "Only the host can start the game", "code": "NOT_HOST"},
@@ -192,11 +211,22 @@ def start_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
     try:
         updated_game = start_game(game, _game_content)
         save_game(updated_game)
+        logger.info("Game started successfully: game_id=%s", game_id)
         return ActionResponse(success=True, message="Game started")
     except ValueError as e:
+        logger.warning("Start game failed: %s (game_id=%s)", str(e), game_id)
         raise HTTPException(
             status_code=400,
             detail={"error": str(e), "code": "CANNOT_START"},
+        ) from e
+    except Exception as e:
+        logger.exception("Unexpected error starting game: game_id=%s", game_id)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": f"Internal server error: {str(e)}",
+                "code": "SERVER_ERROR",
+            },
         ) from e
 
 
@@ -205,9 +235,7 @@ def start_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
     response_model=ActionResponse,
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
 )
-def submit_response_endpoint(
-    game_id: str, player_id: str, request: SubmitResponseRequest
-) -> ActionResponse:
+def submit_response_endpoint(game_id: str, player_id: str, request: SubmitResponseRequest) -> ActionResponse:
     """Submit a response for the current round."""
     game = get_game(game_id)
     if not game:
@@ -236,9 +264,7 @@ def submit_response_endpoint(
     response_model=ActionResponse,
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
 )
-def select_winner_endpoint(
-    game_id: str, player_id: str, request: SelectWinnerRequest
-) -> ActionResponse:
+def select_winner_endpoint(game_id: str, player_id: str, request: SelectWinnerRequest) -> ActionResponse:
     """Judge selects the winner of the current round."""
     game = get_game(game_id)
     if not game:

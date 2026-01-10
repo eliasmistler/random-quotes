@@ -7,6 +7,30 @@ import type {
 
 const API_BASE = 'http://localhost:8000/api'
 
+/**
+ * Extract error message from API response.
+ * Handles various error response formats and provides helpful debugging info.
+ */
+async function extractErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const contentType = response.headers.get('content-type')
+    if (contentType && contentType.includes('application/json')) {
+      const error = await response.json()
+      const message = error.detail?.error || error.detail || error.message || fallback
+      const code = error.detail?.code || ''
+      console.error(`API Error [${response.status}${code ? ` ${code}` : ''}]:`, message)
+      return message
+    } else {
+      const text = await response.text()
+      console.error(`API Error [${response.status}]:`, text || fallback)
+      return text || fallback
+    }
+  } catch {
+    console.error(`API Error [${response.status}]: Could not parse error response`)
+    return fallback
+  }
+}
+
 export async function createGame(hostNickname: string): Promise<GameCreatedResponse> {
   const response = await fetch(`${API_BASE}/games`, {
     method: 'POST',
@@ -17,8 +41,8 @@ export async function createGame(hostNickname: string): Promise<GameCreatedRespo
   })
 
   if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.detail?.error || 'Failed to create game')
+    const message = await extractErrorMessage(response, 'Failed to create game')
+    throw new Error(message)
   }
 
   return response.json()
@@ -34,8 +58,8 @@ export async function joinGame(inviteCode: string, nickname: string): Promise<Ga
   })
 
   if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.detail?.error || 'Failed to join game')
+    const message = await extractErrorMessage(response, 'Failed to join game')
+    throw new Error(message)
   }
 
   return response.json()
@@ -45,21 +69,22 @@ export async function getGameState(gameId: string, playerId: string): Promise<Ga
   const response = await fetch(`${API_BASE}/games/${gameId}?player_id=${playerId}`)
 
   if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.detail?.error || 'Failed to get game state')
+    const message = await extractErrorMessage(response, 'Failed to get game state')
+    throw new Error(message)
   }
 
   return response.json()
 }
 
 export async function startGame(gameId: string, playerId: string): Promise<ActionResponse> {
+  console.log('Starting game:', { gameId, playerId })
   const response = await fetch(`${API_BASE}/games/${gameId}/start?player_id=${playerId}`, {
     method: 'POST',
   })
 
   if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.detail?.error || 'Failed to start game')
+    const message = await extractErrorMessage(response, 'Failed to start game')
+    throw new Error(message)
   }
 
   return response.json()
@@ -79,8 +104,8 @@ export async function submitResponse(
   })
 
   if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.detail?.error || 'Failed to submit response')
+    const message = await extractErrorMessage(response, 'Failed to submit response')
+    throw new Error(message)
   }
 
   return response.json()
@@ -100,8 +125,8 @@ export async function selectWinner(
   })
 
   if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.detail?.error || 'Failed to select winner')
+    const message = await extractErrorMessage(response, 'Failed to select winner')
+    throw new Error(message)
   }
 
   return response.json()
@@ -113,8 +138,8 @@ export async function advanceRound(gameId: string, playerId: string): Promise<Ac
   })
 
   if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.detail?.error || 'Failed to advance round')
+    const message = await extractErrorMessage(response, 'Failed to advance round')
+    throw new Error(message)
   }
 
   return response.json()
