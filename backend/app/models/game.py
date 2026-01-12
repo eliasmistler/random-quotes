@@ -49,9 +49,14 @@ class Round(BaseModel):
 
     round_number: int
     prompt: Prompt
-    judge_id: str
+    judge_id: str | None = None  # Selected after all players submit
     submissions: dict[str, Submission] = Field(default_factory=dict)
     winner_id: str | None = None
+    # Overrule voting fields (when judge picks themselves with 3+ players)
+    judge_picked_self: bool = False
+    overrule_votes: dict[str, bool] = Field(default_factory=dict)  # player_id -> vote_to_overrule
+    winner_votes: dict[str, str] = Field(default_factory=dict)  # voter_id -> chosen_winner_id
+    overruled: bool = False
 
 
 class GameConfig(BaseModel):

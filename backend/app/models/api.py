@@ -30,6 +30,18 @@ class SelectWinnerRequest(BaseModel):
     winner_player_id: str
 
 
+class OverruleVoteRequest(BaseModel):
+    """Request to cast an overrule vote."""
+
+    vote_to_overrule: bool
+
+
+class WinnerVoteRequest(BaseModel):
+    """Request to vote for a new winner after overrule."""
+
+    winner_player_id: str
+
+
 class GameCreatedResponse(BaseModel):
     """Response after creating a new game."""
 
@@ -69,11 +81,20 @@ class RoundInfo(BaseModel):
 
     round_number: int
     prompt: Prompt
-    judge_id: str
+    judge_id: str | None  # None until all players submit
     submissions: list[SubmissionInfo]
     winner_id: str | None
     has_submitted: bool
     is_judge: bool
+    # Overrule voting state
+    judge_picked_self: bool = False
+    overrule_votes: dict[str, bool] = {}
+    can_overrule_vote: bool = False
+    has_cast_overrule_vote: bool = False
+    overruled: bool = False
+    winner_votes: dict[str, str] = {}
+    can_winner_vote: bool = False
+    has_cast_winner_vote: bool = False
 
 
 class GameStateResponse(BaseModel):

@@ -62,6 +62,22 @@ async function handleAdvance() {
   }
 }
 
+async function handleOverruleVote(voteToOverrule: boolean) {
+  try {
+    await gameStore.castOverruleVote(voteToOverrule)
+  } catch (e) {
+    console.error('Failed to cast overrule vote:', e)
+  }
+}
+
+async function handleWinnerVote(playerId: string) {
+  try {
+    await gameStore.castWinnerVote(playerId)
+  } catch (e) {
+    console.error('Failed to cast winner vote:', e)
+  }
+}
+
 function leaveGame() {
   gameStore.leaveGame()
   router.push('/')
@@ -98,14 +114,10 @@ function getPlayerNickname(playerId: string): string {
     <div v-if="gameStore.phase === 'round_submission'" class="phase-content">
       <div class="prompt-card">
         <h2>{{ gameStore.currentRound?.prompt.text }}</h2>
-        <p class="judge-info">Judge: {{ gameStore.judge?.nickname }}</p>
+        <p class="judge-info">Judge will be selected after all players submit</p>
       </div>
 
-      <div v-if="gameStore.isJudge" class="waiting-message">
-        <p>You are the judge this round. Wait for other players to submit their answers.</p>
-      </div>
-
-      <div v-else-if="gameStore.hasSubmitted" class="waiting-message">
+      <div v-if="gameStore.hasSubmitted" class="waiting-message">
         <p>Response submitted! Waiting for other players...</p>
       </div>
 
@@ -181,16 +193,96 @@ function getPlayerNickname(playerId: string): string {
     <!-- Results Phase -->
     <div v-else-if="gameStore.phase === 'round_results'" class="phase-content">
       <div class="results-area">
-        <h2>Winner!</h2>
-        <div class="winner-card">
-          <p class="winner-name">{{ gameStore.roundWinner?.nickname }}</p>
-          <p class="winner-answer">
-            {{
-              gameStore.currentRound?.submissions.find(
-                (s) => s.player_id === gameStore.currentRound?.winner_id,
-              )?.response_text
-            }}
-          </p>
+        <!-- Overrule Voting Section (when judge picked self and not yet resolved) -->
+        <div v-if="gameStore.judgePickedSelf && !gameStore.isOverruled && gameStore.roundWinner" class="overrule-section">
+          <h2>Judge picked their own answer!</h2>
+          <div class="winner-card self-pick">
+            <p class="winner-name">{{ gameStore.roundWinner.nickname }} (Judge)</p>
+            <p class="winner-answer">
+              {{
+                gameStore.currentRound?.submissions.find(
+                  (s) => s.player_id === gameStore.currentRound?.winner_id,
+                )?.response_text
+              }}
+            </p>
+          </div>
+
+          <div v-if="gameStore.canOverruleVote" class="voting-area">
+            <p class="vote-prompt">Do you want to overrule this decision?</p>
+            <p class="vote-note">(Requires unanimous vote from all non-judges)</p>
+            <div class="vote-buttons">
+              <button
+                class="vote-btn overrule"
+                @click="handleOverruleVote(true)"
+                :disabled="gameStore.isLoading"
+              >
+                Overrule
+              </button>
+              <button
+                class="vote-btn keep"
+                @click="handleOverruleVote(false)"
+                :disabled="gameStore.isLoading"
+              >
+                Keep Winner
+              </button>
+            </div>
+          </div>
+
+          <div v-else-if="gameStore.hasCastOverruleVote" class="waiting-message">
+            <p>You voted. Waiting for others... ({{ gameStore.overruleVoteCount }}/{{ gameStore.players.length - 1 }})</p>
+          </div>
+
+          <div v-else-if="gameStore.isJudge" class="waiting-message">
+            <p>Other players are voting on whether to overrule your choice...</p>
+          </div>
+        </div>
+
+        <!-- Winner Voting Section (after successful overrule) -->
+        <div v-else-if="gameStore.isOverruled && !gameStore.roundWinner" class="winner-voting-section">
+          <h2>Overruled! Vote for a new winner</h2>
+          <div class="prompt-reminder">
+            <p>Prompt: {{ gameStore.currentRound?.prompt.text }}</p>
+          </div>
+
+          <div v-if="gameStore.canWinnerVote" class="voting-area">
+            <p class="vote-prompt">Choose the best answer:</p>
+            <div class="submissions-list">
+              <button
+                v-for="submission in gameStore.currentRound?.submissions.filter(s => s.player_id !== gameStore.currentRound?.judge_id)"
+                :key="submission.player_id"
+                class="submission-card vote-option"
+                @click="handleWinnerVote(submission.player_id)"
+                :disabled="gameStore.isLoading"
+              >
+                <span class="submission-text">{{ submission.response_text }}</span>
+                <span class="submission-author">- {{ getPlayerNickname(submission.player_id) }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-else-if="gameStore.hasCastWinnerVote" class="waiting-message">
+            <p>You voted. Waiting for others... ({{ gameStore.winnerVoteCount }}/{{ gameStore.players.length - 1 }})</p>
+          </div>
+
+          <div v-else-if="gameStore.isJudge" class="waiting-message">
+            <p>Other players are voting for a new winner...</p>
+          </div>
+        </div>
+
+        <!-- Normal Winner Display -->
+        <div v-else>
+          <h2>Winner!</h2>
+          <div class="winner-card" :class="{ 'was-overruled': gameStore.isOverruled }">
+            <p class="winner-name">{{ gameStore.roundWinner?.nickname }}</p>
+            <p class="winner-answer">
+              {{
+                gameStore.currentRound?.submissions.find(
+                  (s) => s.player_id === gameStore.currentRound?.winner_id,
+                )?.response_text
+              }}
+            </p>
+            <p v-if="gameStore.isOverruled" class="overrule-note">Chosen by player vote</p>
+          </div>
         </div>
 
         <div class="all-submissions">
@@ -199,21 +291,26 @@ function getPlayerNickname(playerId: string): string {
             v-for="submission in gameStore.currentRound?.submissions"
             :key="submission.player_id"
             class="submission-result"
-            :class="{ winner: submission.player_id === gameStore.currentRound?.winner_id }"
+            :class="{
+              winner: submission.player_id === gameStore.currentRound?.winner_id,
+              'judge-self-pick': gameStore.judgePickedSelf && submission.player_id === gameStore.currentRound?.judge_id
+            }"
           >
             <span class="player-name">{{ getPlayerNickname(submission.player_id) }}:</span>
             <span class="answer">{{ submission.response_text }}</span>
+            <span v-if="submission.player_id === gameStore.currentRound?.judge_id" class="judge-badge">(Judge)</span>
           </div>
         </div>
 
         <button
-          v-if="gameStore.isHost"
+          v-if="gameStore.isHost && gameStore.roundWinner"
           class="advance-btn"
           @click="handleAdvance"
           :disabled="gameStore.isLoading"
         >
           {{ gameStore.isLoading ? 'Loading...' : 'Next Round' }}
         </button>
+        <p v-else-if="!gameStore.roundWinner" class="waiting-text">Waiting for voting to complete...</p>
         <p v-else class="waiting-text">Waiting for host to start next round...</p>
       </div>
     </div>
@@ -534,5 +631,111 @@ function getPlayerNickname(playerId: string): string {
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
+}
+
+/* Overrule voting styles */
+.overrule-section,
+.winner-voting-section {
+  text-align: center;
+}
+
+.winner-card.self-pick {
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+}
+
+.winner-card.was-overruled {
+  background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+}
+
+.overrule-note {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+.voting-area {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: var(--color-background-soft);
+  border-radius: 8px;
+}
+
+.vote-prompt {
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.vote-note {
+  font-size: 0.9rem;
+  opacity: 0.7;
+  margin-bottom: 1rem;
+}
+
+.vote-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.vote-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.vote-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.vote-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.vote-btn.overrule {
+  background: #dc3545;
+  color: white;
+}
+
+.vote-btn.keep {
+  background: #4caf50;
+  color: white;
+}
+
+.prompt-reminder {
+  background: var(--color-background-soft);
+  padding: 1rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.submission-card.vote-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.submission-author {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.submission-result.judge-self-pick {
+  border-left: 4px solid #ff9800;
+}
+
+.judge-badge {
+  font-size: 0.8rem;
+  background: #ff9800;
+  color: white;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin-left: 0.5rem;
 }
 </style>

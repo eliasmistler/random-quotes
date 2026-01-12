@@ -30,6 +30,16 @@ export const useGameStore = defineStore('game', () => {
     return players.value.find((p) => p.id === currentRound.value?.winner_id) ?? null
   })
 
+  // Overrule voting computed properties
+  const judgePickedSelf = computed(() => currentRound.value?.judge_picked_self ?? false)
+  const canOverruleVote = computed(() => currentRound.value?.can_overrule_vote ?? false)
+  const hasCastOverruleVote = computed(() => currentRound.value?.has_cast_overrule_vote ?? false)
+  const isOverruled = computed(() => currentRound.value?.overruled ?? false)
+  const canWinnerVote = computed(() => currentRound.value?.can_winner_vote ?? false)
+  const hasCastWinnerVote = computed(() => currentRound.value?.has_cast_winner_vote ?? false)
+  const overruleVoteCount = computed(() => Object.keys(currentRound.value?.overrule_votes ?? {}).length)
+  const winnerVoteCount = computed(() => Object.keys(currentRound.value?.winner_votes ?? {}).length)
+
   async function createGame(nickname: string) {
     isLoading.value = true
     error.value = null
@@ -162,6 +172,40 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  async function castOverruleVote(voteToOverrule: boolean) {
+    if (!gameId.value || !playerId.value) return
+
+    isLoading.value = true
+    error.value = null
+
+    try {
+      await api.castOverruleVote(gameId.value, playerId.value, voteToOverrule)
+      await refreshGameState()
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Unknown error'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function castWinnerVote(winnerPlayerId: string) {
+    if (!gameId.value || !playerId.value) return
+
+    isLoading.value = true
+    error.value = null
+
+    try {
+      await api.castWinnerVote(gameId.value, playerId.value, winnerPlayerId)
+      await refreshGameState()
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Unknown error'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   function leaveGame() {
     gameId.value = null
     playerId.value = null
@@ -193,6 +237,14 @@ export const useGameStore = defineStore('game', () => {
     hasSubmitted,
     judge,
     roundWinner,
+    judgePickedSelf,
+    canOverruleVote,
+    hasCastOverruleVote,
+    isOverruled,
+    canWinnerVote,
+    hasCastWinnerVote,
+    overruleVoteCount,
+    winnerVoteCount,
     createGame,
     joinGame,
     refreshGameState,
@@ -200,6 +252,8 @@ export const useGameStore = defineStore('game', () => {
     submitResponse,
     selectWinner,
     advanceRound,
+    castOverruleVote,
+    castWinnerVote,
     leaveGame,
   }
 })

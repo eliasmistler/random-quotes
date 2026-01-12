@@ -62,9 +62,7 @@ class ConnectionManager:
             if not self.active_connections[game_id]:
                 del self.active_connections[game_id]
 
-    async def send_personal_message(
-        self, message: dict[str, Any], game_id: str, player_id: str
-    ) -> None:
+    async def send_personal_message(self, message: dict[str, Any], game_id: str, player_id: str) -> None:
         """Send a message to a specific player.
 
         TypeScript Parallel: This is like calling a specific callback function.
@@ -103,9 +101,7 @@ class ConnectionManager:
                     # In production, you'd want to remove it from active_connections
                     print(f"Error broadcasting to connection: {e}")
 
-    async def broadcast_except(
-        self, message: dict[str, Any], game_id: str, exclude_player_id: str
-    ) -> None:
+    async def broadcast_except(self, message: dict[str, Any], game_id: str, exclude_player_id: str) -> None:
         """Send a message to all players EXCEPT one.
 
         Useful when you want to notify others about what a player did,

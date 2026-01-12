@@ -234,7 +234,10 @@ class TestSubmitResponseEndpoint:
 
     @pytest.fixture
     def started_game(self, client: TestClient):
-        """Create and start a game with two players."""
+        """Create and start a game with two players.
+
+        Note: In the new flow, judge is not selected until all players submit.
+        """
         create_resp = client.post("/api/games", json={"host_nickname": "Host"})
         game_id = create_resp.json()["game_id"]
         invite_code = create_resp.json()["invite_code"]
@@ -245,28 +248,22 @@ class TestSubmitResponseEndpoint:
 
         client.post(f"/api/games/{game_id}/start?player_id={player1_id}")
 
-        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
-        judge_id = state["current_round"]["judge_id"]
-        submitter_id = player1_id if judge_id == player2_id else player2_id
-
         return {
             "game_id": game_id,
             "player1_id": player1_id,
             "player2_id": player2_id,
-            "judge_id": judge_id,
-            "submitter_id": submitter_id,
         }
 
     def test_submit_response_success(self, client: TestClient, started_game) -> None:
         """Test successfully submitting a response."""
         game_id = started_game["game_id"]
-        submitter_id = started_game["submitter_id"]
+        player_id = started_game["player1_id"]
 
-        state = client.get(f"/api/games/{game_id}?player_id={submitter_id}").json()
+        state = client.get(f"/api/games/{game_id}?player_id={player_id}").json()
         tiles = state["my_tiles"][:2]
 
         response = client.post(
-            f"/api/games/{game_id}/submit?player_id={submitter_id}",
+            f"/api/games/{game_id}/submit?player_id={player_id}",
             json={"tiles_used": tiles},
         )
 
@@ -276,46 +273,58 @@ class TestSubmitResponseEndpoint:
     def test_submit_removes_used_tiles(self, client: TestClient, started_game) -> None:
         """Test that submitted tiles are removed from player's hand."""
         game_id = started_game["game_id"]
-        submitter_id = started_game["submitter_id"]
+        player_id = started_game["player1_id"]
 
-        state_before = client.get(f"/api/games/{game_id}?player_id={submitter_id}").json()
+        state_before = client.get(f"/api/games/{game_id}?player_id={player_id}").json()
         tiles_before = set(state_before["my_tiles"])
         tiles_to_use = state_before["my_tiles"][:2]
 
         client.post(
-            f"/api/games/{game_id}/submit?player_id={submitter_id}",
+            f"/api/games/{game_id}/submit?player_id={player_id}",
             json={"tiles_used": tiles_to_use},
         )
 
-        state_after = client.get(f"/api/games/{game_id}?player_id={submitter_id}").json()
+        state_after = client.get(f"/api/games/{game_id}?player_id={player_id}").json()
         tiles_after = set(state_after["my_tiles"])
 
         for tile in tiles_to_use:
             assert tile not in tiles_after
         assert len(tiles_after) == len(tiles_before) - 2
 
-    def test_judge_cannot_submit(self, client: TestClient, started_game) -> None:
-        """Test that the judge cannot submit."""
+    def test_all_players_can_submit(self, client: TestClient, started_game) -> None:
+        """Test that all players can submit (no judge restriction)."""
         game_id = started_game["game_id"]
-        judge_id = started_game["judge_id"]
+        player1_id = started_game["player1_id"]
+        player2_id = started_game["player2_id"]
 
-        state = client.get(f"/api/games/{game_id}?player_id={judge_id}").json()
-        tiles = state["my_tiles"][:1]
+        # Both players should be able to submit
+        state1 = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        state2 = client.get(f"/api/games/{game_id}?player_id={player2_id}").json()
 
-        response = client.post(
-            f"/api/games/{game_id}/submit?player_id={judge_id}",
-            json={"tiles_used": tiles},
+        resp1 = client.post(
+            f"/api/games/{game_id}/submit?player_id={player1_id}",
+            json={"tiles_used": state1["my_tiles"][:1]},
         )
+        assert resp1.status_code == 200
 
-        assert response.status_code == 400
+        resp2 = client.post(
+            f"/api/games/{game_id}/submit?player_id={player2_id}",
+            json={"tiles_used": state2["my_tiles"][:1]},
+        )
+        assert resp2.status_code == 200
+
+        # After both submit, game should be in judging phase with judge selected
+        final_state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        assert final_state["phase"] == "round_judging"
+        assert final_state["current_round"]["judge_id"] is not None
 
     def test_cannot_submit_invalid_tiles(self, client: TestClient, started_game) -> None:
         """Test that submitting tiles not in hand fails."""
         game_id = started_game["game_id"]
-        submitter_id = started_game["submitter_id"]
+        player_id = started_game["player1_id"]
 
         response = client.post(
-            f"/api/games/{game_id}/submit?player_id={submitter_id}",
+            f"/api/games/{game_id}/submit?player_id={player_id}",
             json={"tiles_used": ["FAKE_TILE"]},
         )
 
@@ -327,7 +336,10 @@ class TestSelectWinnerEndpoint:
 
     @pytest.fixture
     def judging_game(self, client: TestClient):
-        """Create a game in judging phase."""
+        """Create a game in judging phase.
+
+        In the new flow: all players submit, then judge is selected.
+        """
         create_resp = client.post("/api/games", json={"host_nickname": "Host"})
         game_id = create_resp.json()["game_id"]
         invite_code = create_resp.json()["invite_code"]
@@ -338,33 +350,41 @@ class TestSelectWinnerEndpoint:
 
         client.post(f"/api/games/{game_id}/start?player_id={player1_id}")
 
-        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
-        judge_id = state["current_round"]["judge_id"]
-        submitter_id = player1_id if judge_id == player2_id else player2_id
+        # Both players submit (new flow - everyone submits)
+        state1 = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        state2 = client.get(f"/api/games/{game_id}?player_id={player2_id}").json()
 
-        submitter_state = client.get(f"/api/games/{game_id}?player_id={submitter_id}").json()
         client.post(
-            f"/api/games/{game_id}/submit?player_id={submitter_id}",
-            json={"tiles_used": submitter_state["my_tiles"][:1]},
+            f"/api/games/{game_id}/submit?player_id={player1_id}",
+            json={"tiles_used": state1["my_tiles"][:1]},
         )
+        client.post(
+            f"/api/games/{game_id}/submit?player_id={player2_id}",
+            json={"tiles_used": state2["my_tiles"][:1]},
+        )
+
+        # Now judge is selected and game is in judging phase
+        final_state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        judge_id = final_state["current_round"]["judge_id"]
+        non_judge_id = player1_id if judge_id == player2_id else player2_id
 
         return {
             "game_id": game_id,
             "player1_id": player1_id,
             "player2_id": player2_id,
             "judge_id": judge_id,
-            "submitter_id": submitter_id,
+            "non_judge_id": non_judge_id,
         }
 
     def test_select_winner_success(self, client: TestClient, judging_game) -> None:
         """Test judge successfully selecting winner."""
         game_id = judging_game["game_id"]
         judge_id = judging_game["judge_id"]
-        submitter_id = judging_game["submitter_id"]
+        non_judge_id = judging_game["non_judge_id"]
 
         response = client.post(
             f"/api/games/{game_id}/judge?player_id={judge_id}",
-            json={"winner_player_id": submitter_id},
+            json={"winner_player_id": non_judge_id},
         )
 
         assert response.status_code == 200
@@ -372,16 +392,16 @@ class TestSelectWinnerEndpoint:
 
         state = client.get(f"/api/games/{game_id}?player_id={judge_id}").json()
         assert state["phase"] == "round_results"
-        assert state["current_round"]["winner_id"] == submitter_id
+        assert state["current_round"]["winner_id"] == non_judge_id
 
     def test_nonjudge_cannot_select_winner(self, client: TestClient, judging_game) -> None:
         """Test that non-judge cannot select winner."""
         game_id = judging_game["game_id"]
-        submitter_id = judging_game["submitter_id"]
+        non_judge_id = judging_game["non_judge_id"]
 
         response = client.post(
-            f"/api/games/{game_id}/judge?player_id={submitter_id}",
-            json={"winner_player_id": submitter_id},
+            f"/api/games/{game_id}/judge?player_id={non_judge_id}",
+            json={"winner_player_id": non_judge_id},
         )
 
         assert response.status_code == 403
@@ -391,18 +411,18 @@ class TestSelectWinnerEndpoint:
         """Test that winner's score increases by 1."""
         game_id = judging_game["game_id"]
         judge_id = judging_game["judge_id"]
-        submitter_id = judging_game["submitter_id"]
+        non_judge_id = judging_game["non_judge_id"]
 
-        state_before = client.get(f"/api/games/{game_id}?player_id={submitter_id}").json()
-        score_before = next(p["score"] for p in state_before["players"] if p["id"] == submitter_id)
+        state_before = client.get(f"/api/games/{game_id}?player_id={non_judge_id}").json()
+        score_before = next(p["score"] for p in state_before["players"] if p["id"] == non_judge_id)
 
         client.post(
             f"/api/games/{game_id}/judge?player_id={judge_id}",
-            json={"winner_player_id": submitter_id},
+            json={"winner_player_id": non_judge_id},
         )
 
-        state_after = client.get(f"/api/games/{game_id}?player_id={submitter_id}").json()
-        score_after = next(p["score"] for p in state_after["players"] if p["id"] == submitter_id)
+        state_after = client.get(f"/api/games/{game_id}?player_id={non_judge_id}").json()
+        score_after = next(p["score"] for p in state_after["players"] if p["id"] == non_judge_id)
 
         assert score_after == score_before + 1
 
@@ -412,7 +432,10 @@ class TestAdvanceRoundEndpoint:
 
     @pytest.fixture
     def results_game(self, client: TestClient):
-        """Create a game in results phase."""
+        """Create a game in results phase.
+
+        In the new flow: all players submit, then judge is selected, then winner is picked.
+        """
         create_resp = client.post("/api/games", json={"host_nickname": "Host"})
         game_id = create_resp.json()["game_id"]
         invite_code = create_resp.json()["invite_code"]
@@ -423,19 +446,27 @@ class TestAdvanceRoundEndpoint:
 
         client.post(f"/api/games/{game_id}/start?player_id={player1_id}")
 
-        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
-        judge_id = state["current_round"]["judge_id"]
-        submitter_id = player1_id if judge_id == player2_id else player2_id
+        # Both players submit
+        state1 = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        state2 = client.get(f"/api/games/{game_id}?player_id={player2_id}").json()
 
-        submitter_state = client.get(f"/api/games/{game_id}?player_id={submitter_id}").json()
         client.post(
-            f"/api/games/{game_id}/submit?player_id={submitter_id}",
-            json={"tiles_used": submitter_state["my_tiles"][:1]},
+            f"/api/games/{game_id}/submit?player_id={player1_id}",
+            json={"tiles_used": state1["my_tiles"][:1]},
         )
+        client.post(
+            f"/api/games/{game_id}/submit?player_id={player2_id}",
+            json={"tiles_used": state2["my_tiles"][:1]},
+        )
+
+        # Now in judging phase, get judge and pick winner
+        judging_state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        judge_id = judging_state["current_round"]["judge_id"]
+        non_judge_id = player1_id if judge_id == player2_id else player2_id
 
         client.post(
             f"/api/games/{game_id}/judge?player_id={judge_id}",
-            json={"winner_player_id": submitter_id},
+            json={"winner_player_id": non_judge_id},
         )
 
         return {
@@ -443,7 +474,7 @@ class TestAdvanceRoundEndpoint:
             "player1_id": player1_id,
             "player2_id": player2_id,
             "judge_id": judge_id,
-            "submitter_id": submitter_id,
+            "winner_id": non_judge_id,
         }
 
     def test_advance_round_success(self, client: TestClient, results_game) -> None:
@@ -486,11 +517,11 @@ class TestAdvanceRoundEndpoint:
         """Test that tiles are replenished after advancing."""
         game_id = results_game["game_id"]
         player1_id = results_game["player1_id"]
-        submitter_id = results_game["submitter_id"]
+        winner_id = results_game["winner_id"]
 
         client.post(f"/api/games/{game_id}/advance?player_id={player1_id}")
 
-        state = client.get(f"/api/games/{game_id}?player_id={submitter_id}").json()
+        state = client.get(f"/api/games/{game_id}?player_id={winner_id}").json()
 
         if state["phase"] != "game_over":
             tiles_per_player = state["config"]["tiles_per_player"]

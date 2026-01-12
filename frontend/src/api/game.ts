@@ -144,3 +144,45 @@ export async function advanceRound(gameId: string, playerId: string): Promise<Ac
 
   return response.json()
 }
+
+export async function castOverruleVote(
+  gameId: string,
+  playerId: string,
+  voteToOverrule: boolean,
+): Promise<ActionResponse> {
+  const response = await fetch(`${API_BASE}/games/${gameId}/overrule?player_id=${playerId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ vote_to_overrule: voteToOverrule }),
+  })
+
+  if (!response.ok) {
+    const message = await extractErrorMessage(response, 'Failed to cast overrule vote')
+    throw new Error(message)
+  }
+
+  return response.json()
+}
+
+export async function castWinnerVote(
+  gameId: string,
+  playerId: string,
+  winnerPlayerId: string,
+): Promise<ActionResponse> {
+  const response = await fetch(`${API_BASE}/games/${gameId}/vote-winner?player_id=${playerId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ winner_player_id: winnerPlayerId }),
+  })
+
+  if (!response.ok) {
+    const message = await extractErrorMessage(response, 'Failed to cast winner vote')
+    throw new Error(message)
+  }
+
+  return response.json()
+}

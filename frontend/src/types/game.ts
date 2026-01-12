@@ -44,11 +44,20 @@ export interface SubmissionInfo {
 export interface RoundInfo {
   round_number: number
   prompt: Prompt
-  judge_id: string
+  judge_id: string | null // null until all players submit
   submissions: SubmissionInfo[]
   winner_id: string | null
   has_submitted: boolean
   is_judge: boolean
+  // Overrule voting state
+  judge_picked_self: boolean
+  overrule_votes: Record<string, boolean>
+  can_overrule_vote: boolean
+  has_cast_overrule_vote: boolean
+  overruled: boolean
+  winner_votes: Record<string, string>
+  can_winner_vote: boolean
+  has_cast_winner_vote: boolean
 }
 
 export interface GameCreatedResponse {

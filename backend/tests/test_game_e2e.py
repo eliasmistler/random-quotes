@@ -63,6 +63,7 @@ class TestGameE2E:
         # Play rounds until someone wins
         rounds_played = 0
         max_rounds = 10  # Safety limit
+        winner_id = player1_id  # Track who wins each round
 
         while rounds_played < max_rounds:
             rounds_played += 1
@@ -75,38 +76,48 @@ class TestGameE2E:
                 break
 
             assert state1["phase"] == "round_submission"
+            # Judge not selected yet - all players submit first
+            assert state1["current_round"]["judge_id"] is None
 
-            judge_id = state1["current_round"]["judge_id"]
-            submitter_id = player1_id if judge_id == player2_id else player2_id
-            submitter_state = state1 if submitter_id == player1_id else state2
-
-            # Submitter submits a response using their tiles
-            tiles_to_use = submitter_state["my_tiles"][:2]  # Use first 2 tiles
-            submit_response = client.post(
-                f"/api/games/{game_id}/submit?player_id={submitter_id}",
-                json={"tiles_used": tiles_to_use},
+            # ALL players submit (new flow)
+            tiles1 = state1["my_tiles"][:2]
+            submit_response1 = client.post(
+                f"/api/games/{game_id}/submit?player_id={player1_id}",
+                json={"tiles_used": tiles1},
             )
-            assert submit_response.status_code == 200
+            assert submit_response1.status_code == 200
 
-            # Verify we're now in judging phase
-            state = client.get(f"/api/games/{game_id}?player_id={judge_id}").json()
+            tiles2 = state2["my_tiles"][:2]
+            submit_response2 = client.post(
+                f"/api/games/{game_id}/submit?player_id={player2_id}",
+                json={"tiles_used": tiles2},
+            )
+            assert submit_response2.status_code == 200
+
+            # Verify we're now in judging phase (after all submitted)
+            state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
             assert state["phase"] == "round_judging"
-            assert len(state["current_round"]["submissions"]) == 1
+            assert len(state["current_round"]["submissions"]) == 2
 
-            # Judge selects the winner (only one submission)
+            # Now judge is selected
+            judge_id = state["current_round"]["judge_id"]
+            assert judge_id is not None
+
+            # Judge selects the other player as winner (to avoid overrule complexity)
+            winner_id = player1_id if judge_id == player2_id else player2_id
             judge_response = client.post(
                 f"/api/games/{game_id}/judge?player_id={judge_id}",
-                json={"winner_player_id": submitter_id},
+                json={"winner_player_id": winner_id},
             )
             assert judge_response.status_code == 200
 
             # Verify we're in results phase
             state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
             assert state["phase"] == "round_results"
-            assert state["current_round"]["winner_id"] == submitter_id
+            assert state["current_round"]["winner_id"] == winner_id
 
             # Check if game should be over
-            winner_score = next(p["score"] for p in state["players"] if p["id"] == submitter_id)
+            winner_score = next(p["score"] for p in state["players"] if p["id"] == winner_id)
             points_to_win = state["config"]["points_to_win"]
 
             # Host advances to next round
@@ -148,25 +159,32 @@ class TestGameE2E:
 
         # Play 3 rounds to verify rotation
         for _ in range(3):
-            state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+            state1 = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+            state2 = client.get(f"/api/games/{game_id}?player_id={player2_id}").json()
 
-            if state["phase"] == "game_over":
+            if state1["phase"] == "game_over":
                 break
 
+            # All players submit first (judge selected after)
+            client.post(
+                f"/api/games/{game_id}/submit?player_id={player1_id}",
+                json={"tiles_used": state1["my_tiles"][:1]},
+            )
+            client.post(
+                f"/api/games/{game_id}/submit?player_id={player2_id}",
+                json={"tiles_used": state2["my_tiles"][:1]},
+            )
+
+            # Now get judge (selected after all submit)
+            state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
             judge_id = state["current_round"]["judge_id"]
             judges_seen.append(judge_id)
 
-            # Submit and judge
-            submitter_id = player1_id if judge_id == player2_id else player2_id
-            submitter_state = client.get(f"/api/games/{game_id}?player_id={submitter_id}").json()
-
-            client.post(
-                f"/api/games/{game_id}/submit?player_id={submitter_id}",
-                json={"tiles_used": submitter_state["my_tiles"][:1]},
-            )
+            # Judge picks the other player as winner
+            winner_id = player1_id if judge_id == player2_id else player2_id
             client.post(
                 f"/api/games/{game_id}/judge?player_id={judge_id}",
-                json={"winner_player_id": submitter_id},
+                json={"winner_player_id": winner_id},
             )
             client.post(f"/api/games/{game_id}/advance?player_id={player1_id}")
 
@@ -188,37 +206,43 @@ class TestGameE2E:
         client.post(f"/api/games/{game_id}/start?player_id={player1_id}")
 
         # Get initial state
-        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
-        initial_tile_count = len(state["my_tiles"])
-        tiles_per_player = state["config"]["tiles_per_player"]
+        state1 = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        state2 = client.get(f"/api/games/{game_id}?player_id={player2_id}").json()
+        tiles_per_player = state1["config"]["tiles_per_player"]
 
-        assert initial_tile_count == tiles_per_player
+        assert len(state1["my_tiles"]) == tiles_per_player
 
-        # Find who's not the judge and submit
-        judge_id = state["current_round"]["judge_id"]
-        submitter_id = player1_id if judge_id == player2_id else player2_id
-
-        submitter_state = client.get(f"/api/games/{game_id}?player_id={submitter_id}").json()
-        tiles_to_use = submitter_state["my_tiles"][:3]
+        # Player 1 uses 3 tiles, Player 2 uses 1 tile (all players submit)
+        tiles_to_use1 = state1["my_tiles"][:3]
+        tiles_to_use2 = state2["my_tiles"][:1]
 
         client.post(
-            f"/api/games/{game_id}/submit?player_id={submitter_id}",
-            json={"tiles_used": tiles_to_use},
+            f"/api/games/{game_id}/submit?player_id={player1_id}",
+            json={"tiles_used": tiles_to_use1},
         )
 
-        # Verify tiles were removed
-        state_after_submit = client.get(f"/api/games/{game_id}?player_id={submitter_id}").json()
+        # Verify tiles were removed for player 1
+        state_after_submit = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
         assert len(state_after_submit["my_tiles"]) == tiles_per_player - 3
 
-        # Complete round
+        client.post(
+            f"/api/games/{game_id}/submit?player_id={player2_id}",
+            json={"tiles_used": tiles_to_use2},
+        )
+
+        # Get judge (selected after all submit) and complete round
+        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        judge_id = state["current_round"]["judge_id"]
+        winner_id = player1_id if judge_id == player2_id else player2_id
+
         client.post(
             f"/api/games/{game_id}/judge?player_id={judge_id}",
-            json={"winner_player_id": submitter_id},
+            json={"winner_player_id": winner_id},
         )
         client.post(f"/api/games/{game_id}/advance?player_id={player1_id}")
 
         # Verify tiles were replenished
-        state_after_round = client.get(f"/api/games/{game_id}?player_id={submitter_id}").json()
+        state_after_round = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
 
         if state_after_round["phase"] != "game_over":
             assert len(state_after_round["my_tiles"]) == tiles_per_player
@@ -242,20 +266,27 @@ class TestGameE2E:
         start_resp = client.post(f"/api/games/{game_id}/start?player_id={player1_id}")
         assert start_resp.status_code == 200
 
-        # Play through a round
-        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
-        judge_id = state["current_round"]["judge_id"]
-        submitter_id = player1_id if judge_id == player2_id else player2_id
-
-        submitter_state = client.get(f"/api/games/{game_id}?player_id={submitter_id}").json()
+        # Play through a round - all players submit
+        state1 = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        state2 = client.get(f"/api/games/{game_id}?player_id={player2_id}").json()
 
         client.post(
-            f"/api/games/{game_id}/submit?player_id={submitter_id}",
-            json={"tiles_used": submitter_state["my_tiles"][:1]},
+            f"/api/games/{game_id}/submit?player_id={player1_id}",
+            json={"tiles_used": state1["my_tiles"][:1]},
         )
         client.post(
+            f"/api/games/{game_id}/submit?player_id={player2_id}",
+            json={"tiles_used": state2["my_tiles"][:1]},
+        )
+
+        # Get judge (selected after all submit)
+        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        judge_id = state["current_round"]["judge_id"]
+        winner_id = player1_id if judge_id == player2_id else player2_id
+
+        client.post(
             f"/api/games/{game_id}/judge?player_id={judge_id}",
-            json={"winner_player_id": submitter_id},
+            json={"winner_player_id": winner_id},
         )
 
         # Non-host tries to advance - should fail
@@ -279,29 +310,35 @@ class TestGameE2E:
 
         client.post(f"/api/games/{game_id}/start?player_id={player1_id}")
 
-        # Get judge and submitter
+        # All players submit (judge selected after)
+        state1 = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        state2 = client.get(f"/api/games/{game_id}?player_id={player2_id}").json()
+
+        client.post(
+            f"/api/games/{game_id}/submit?player_id={player1_id}",
+            json={"tiles_used": state1["my_tiles"][:1]},
+        )
+        client.post(
+            f"/api/games/{game_id}/submit?player_id={player2_id}",
+            json={"tiles_used": state2["my_tiles"][:1]},
+        )
+
+        # Get judge (selected after all submit)
         state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
         judge_id = state["current_round"]["judge_id"]
-        submitter_id = player1_id if judge_id == player2_id else player2_id
-
-        # Submit response
-        submitter_state = client.get(f"/api/games/{game_id}?player_id={submitter_id}").json()
-        client.post(
-            f"/api/games/{game_id}/submit?player_id={submitter_id}",
-            json={"tiles_used": submitter_state["my_tiles"][:1]},
-        )
+        non_judge_id = player1_id if judge_id == player2_id else player2_id
 
         # Non-judge tries to select winner - should fail
         judge_resp = client.post(
-            f"/api/games/{game_id}/judge?player_id={submitter_id}",
-            json={"winner_player_id": submitter_id},
+            f"/api/games/{game_id}/judge?player_id={non_judge_id}",
+            json={"winner_player_id": non_judge_id},
         )
         assert judge_resp.status_code == 403
 
         # Judge selects successfully
         judge_resp = client.post(
             f"/api/games/{game_id}/judge?player_id={judge_id}",
-            json={"winner_player_id": submitter_id},
+            json={"winner_player_id": non_judge_id},
         )
         assert judge_resp.status_code == 200
 
@@ -327,30 +364,32 @@ class TestGameE2E:
         # Start game
         client.post(f"/api/games/{game_id}/start?player_id={player1_id}")
 
-        # Get state to find judge and submitters
+        # Get state - judge not selected yet
         state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
         assert state["phase"] == "round_submission"
+        assert state["current_round"]["judge_id"] is None
 
-        judge_id = state["current_round"]["judge_id"]
-        submitter_ids = [pid for pid in [player1_id, player2_id, player3_id] if pid != judge_id]
-        assert len(submitter_ids) == 2
-
-        # Both non-judge players submit
-        for submitter_id in submitter_ids:
-            submitter_state = client.get(f"/api/games/{game_id}?player_id={submitter_id}").json()
+        # ALL three players submit (new flow)
+        all_player_ids = [player1_id, player2_id, player3_id]
+        for player_id in all_player_ids:
+            player_state = client.get(f"/api/games/{game_id}?player_id={player_id}").json()
             submit_resp = client.post(
-                f"/api/games/{game_id}/submit?player_id={submitter_id}",
-                json={"tiles_used": submitter_state["my_tiles"][:2]},
+                f"/api/games/{game_id}/submit?player_id={player_id}",
+                json={"tiles_used": player_state["my_tiles"][:2]},
             )
             assert submit_resp.status_code == 200
 
-        # Verify game is now in judging phase with 2 submissions
-        state = client.get(f"/api/games/{game_id}?player_id={judge_id}").json()
+        # Verify game is now in judging phase with 3 submissions
+        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
         assert state["phase"] == "round_judging"
-        assert len(state["current_round"]["submissions"]) == 2
+        assert len(state["current_round"]["submissions"]) == 3
 
-        # Judge picks a winner
-        winner_id = submitter_ids[0]
+        # Now judge is selected
+        judge_id = state["current_round"]["judge_id"]
+        assert judge_id is not None
+
+        # Judge picks a non-judge winner (to avoid overrule complexity)
+        winner_id = next(pid for pid in all_player_ids if pid != judge_id)
         judge_resp = client.post(
             f"/api/games/{game_id}/judge?player_id={judge_id}",
             json={"winner_player_id": winner_id},
@@ -384,32 +423,44 @@ class TestGameE2E:
         assert join_resp.status_code == 400
         assert "lobby" in join_resp.json()["detail"]["error"].lower()
 
-    def test_judge_cannot_submit(self, client: TestClient):
-        """Test that the judge cannot submit a response."""
+    def test_all_players_can_submit(self, client: TestClient):
+        """Test that all players (including future judge) can submit responses."""
         # Create and start game
         create_resp = client.post("/api/games", json={"host_nickname": "Alice"})
         game_id = create_resp.json()["game_id"]
         invite_code = create_resp.json()["invite_code"]
         player1_id = create_resp.json()["player_id"]
 
-        client.post(f"/api/games/join/{invite_code}", json={"nickname": "Bob"})
+        join_resp = client.post(f"/api/games/join/{invite_code}", json={"nickname": "Bob"})
+        player2_id = join_resp.json()["player_id"]
 
         client.post(f"/api/games/{game_id}/start?player_id={player1_id}")
 
-        # Get the judge
+        # Judge not selected yet at start
         state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
-        judge_id = state["current_round"]["judge_id"]
+        assert state["current_round"]["judge_id"] is None
 
-        # Get judge's tiles
-        judge_state = client.get(f"/api/games/{game_id}?player_id={judge_id}").json()
+        # Both players can submit
+        state1 = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        state2 = client.get(f"/api/games/{game_id}?player_id={player2_id}").json()
 
-        # Judge tries to submit - should fail
-        submit_resp = client.post(
-            f"/api/games/{game_id}/submit?player_id={judge_id}",
-            json={"tiles_used": judge_state["my_tiles"][:1]},
+        submit_resp1 = client.post(
+            f"/api/games/{game_id}/submit?player_id={player1_id}",
+            json={"tiles_used": state1["my_tiles"][:1]},
         )
-        assert submit_resp.status_code == 400
-        assert "judge" in submit_resp.json()["detail"]["error"].lower()
+        assert submit_resp1.status_code == 200
+
+        submit_resp2 = client.post(
+            f"/api/games/{game_id}/submit?player_id={player2_id}",
+            json={"tiles_used": state2["my_tiles"][:1]},
+        )
+        assert submit_resp2.status_code == 200
+
+        # After all submit, judge is selected and game moves to judging
+        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        assert state["phase"] == "round_judging"
+        assert state["current_round"]["judge_id"] is not None
+        assert len(state["current_round"]["submissions"]) == 2
 
     def test_player_cannot_submit_twice(self, client: TestClient):
         """Test that a player cannot submit more than once per round."""
@@ -419,31 +470,26 @@ class TestGameE2E:
         invite_code = create_resp.json()["invite_code"]
         player1_id = create_resp.json()["player_id"]
 
-        join_resp2 = client.post(f"/api/games/join/{invite_code}", json={"nickname": "Bob"})
-        player2_id = join_resp2.json()["player_id"]
-
+        client.post(f"/api/games/join/{invite_code}", json={"nickname": "Bob"})
         client.post(f"/api/games/join/{invite_code}", json={"nickname": "Charlie"})
 
         client.post(f"/api/games/{game_id}/start?player_id={player1_id}")
 
-        # Get state and find a non-judge player
+        # Get state for player 1
         state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
-        judge_id = state["current_round"]["judge_id"]
-        submitter_id = player1_id if judge_id != player1_id else player2_id
-
-        submitter_state = client.get(f"/api/games/{game_id}?player_id={submitter_id}").json()
+        player1_tiles = state["my_tiles"]
 
         # First submission - should succeed
         submit_resp = client.post(
-            f"/api/games/{game_id}/submit?player_id={submitter_id}",
-            json={"tiles_used": submitter_state["my_tiles"][:1]},
+            f"/api/games/{game_id}/submit?player_id={player1_id}",
+            json={"tiles_used": player1_tiles[:1]},
         )
         assert submit_resp.status_code == 200
 
         # Second submission - should fail
         submit_resp2 = client.post(
-            f"/api/games/{game_id}/submit?player_id={submitter_id}",
-            json={"tiles_used": submitter_state["my_tiles"][1:2]},
+            f"/api/games/{game_id}/submit?player_id={player1_id}",
+            json={"tiles_used": player1_tiles[1:2]},
         )
         assert submit_resp2.status_code == 400
         assert "already submitted" in submit_resp2.json()["detail"]["error"].lower()
@@ -499,18 +545,13 @@ class TestGameE2E:
 
         client.post(f"/api/games/{game_id}/start?player_id={player1_id}")
 
-        # Get state
-        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
-        judge_id = state["current_round"]["judge_id"]
-
         # Try to submit a tile the player doesn't have
-        player1_id = player1_id if judge_id != player1_id else create_resp.json()["player_id"]
         submit_resp = client.post(
             f"/api/games/{game_id}/submit?player_id={player1_id}",
             json={"tiles_used": ["FAKE_TILE_THAT_DOESNT_EXIST"]},
         )
-        # Either 400 if player is valid but tile invalid, or 404/400 otherwise
-        assert submit_resp.status_code in [400, 403]
+        assert submit_resp.status_code == 400
+        assert "does not have tile" in submit_resp.json()["detail"]["error"].lower()
 
     def test_custom_game_configuration(self, client: TestClient):
         """Test that custom game configuration is applied correctly."""
@@ -541,48 +582,40 @@ class TestGameE2E:
         assert state["config"]["max_players"] == 4
         assert len(state["my_tiles"]) == 10
 
-    def test_cannot_select_nonsubmitter_as_winner(self, client: TestClient):
-        """Test that the judge cannot select a player who didn't submit."""
-        # Create game with 3 players
+    def test_cannot_select_nonexistent_player_as_winner(self, client: TestClient):
+        """Test that the judge cannot select a non-existent player as winner."""
+        # Create game with 2 players
         create_resp = client.post("/api/games", json={"host_nickname": "Alice"})
         game_id = create_resp.json()["game_id"]
         invite_code = create_resp.json()["invite_code"]
         player1_id = create_resp.json()["player_id"]
 
-        join_resp2 = client.post(f"/api/games/join/{invite_code}", json={"nickname": "Bob"})
-        player2_id = join_resp2.json()["player_id"]
-
-        join_resp3 = client.post(f"/api/games/join/{invite_code}", json={"nickname": "Charlie"})
-        player3_id = join_resp3.json()["player_id"]
+        join_resp = client.post(f"/api/games/join/{invite_code}", json={"nickname": "Bob"})
+        player2_id = join_resp.json()["player_id"]
 
         client.post(f"/api/games/{game_id}/start?player_id={player1_id}")
 
-        # Get state
+        # All players submit
+        state1 = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        state2 = client.get(f"/api/games/{game_id}?player_id={player2_id}").json()
+
+        client.post(
+            f"/api/games/{game_id}/submit?player_id={player1_id}",
+            json={"tiles_used": state1["my_tiles"][:1]},
+        )
+        client.post(
+            f"/api/games/{game_id}/submit?player_id={player2_id}",
+            json={"tiles_used": state2["my_tiles"][:1]},
+        )
+
+        # Get judge
         state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
         judge_id = state["current_round"]["judge_id"]
 
-        # Find submitters (non-judges)
-        all_players = [player1_id, player2_id, player3_id]
-        submitters = [p for p in all_players if p != judge_id]
-
-        # Only one player submits
-        submitter_state = client.get(f"/api/games/{game_id}?player_id={submitters[0]}").json()
-        client.post(
-            f"/api/games/{game_id}/submit?player_id={submitters[0]}",
-            json={"tiles_used": submitter_state["my_tiles"][:1]},
-        )
-
-        # Second player also submits to trigger judging phase
-        submitter2_state = client.get(f"/api/games/{game_id}?player_id={submitters[1]}").json()
-        client.post(
-            f"/api/games/{game_id}/submit?player_id={submitters[1]}",
-            json={"tiles_used": submitter2_state["my_tiles"][:1]},
-        )
-
-        # Judge tries to select the judge (who didn't submit) as winner
+        # Judge tries to select a non-existent player as winner
         judge_resp = client.post(
             f"/api/games/{game_id}/judge?player_id={judge_id}",
-            json={"winner_player_id": judge_id},
+            json={"winner_player_id": "nonexistent-player-id"},
         )
         assert judge_resp.status_code == 400
         assert "submitted" in judge_resp.json()["detail"]["error"].lower()
@@ -662,3 +695,257 @@ class TestGameE2E:
         advance_resp = client.post(f"/api/games/{game_id}/advance?player_id={player1_id}")
         assert advance_resp.status_code == 400
         assert "results" in advance_resp.json()["detail"]["error"].lower()
+
+    def test_judge_picks_self_triggers_overrule_voting(self, client: TestClient):
+        """Test that when judge picks themselves with 3+ players, overrule voting is available."""
+        # Create game with 3 players
+        create_resp = client.post("/api/games", json={"host_nickname": "Alice"})
+        game_id = create_resp.json()["game_id"]
+        invite_code = create_resp.json()["invite_code"]
+        player1_id = create_resp.json()["player_id"]
+
+        join_resp2 = client.post(f"/api/games/join/{invite_code}", json={"nickname": "Bob"})
+        player2_id = join_resp2.json()["player_id"]
+
+        join_resp3 = client.post(f"/api/games/join/{invite_code}", json={"nickname": "Charlie"})
+        player3_id = join_resp3.json()["player_id"]
+
+        client.post(f"/api/games/{game_id}/start?player_id={player1_id}")
+
+        # All players submit
+        all_players = [player1_id, player2_id, player3_id]
+        for pid in all_players:
+            state = client.get(f"/api/games/{game_id}?player_id={pid}").json()
+            client.post(
+                f"/api/games/{game_id}/submit?player_id={pid}",
+                json={"tiles_used": state["my_tiles"][:1]},
+            )
+
+        # Get judge and have them pick themselves
+        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        judge_id = state["current_round"]["judge_id"]
+
+        client.post(
+            f"/api/games/{game_id}/judge?player_id={judge_id}",
+            json={"winner_player_id": judge_id},
+        )
+
+        # Verify overrule voting is available for non-judges
+        for pid in all_players:
+            state = client.get(f"/api/games/{game_id}?player_id={pid}").json()
+            assert state["phase"] == "round_results"
+            assert state["current_round"]["judge_picked_self"] is True
+            if pid != judge_id:
+                assert state["current_round"]["can_overrule_vote"] is True
+            else:
+                assert state["current_round"]["can_overrule_vote"] is False
+
+    def test_unanimous_overrule_reverts_point(self, client: TestClient):
+        """Test that unanimous overrule vote reverts the judge's point and enables winner voting."""
+        # Create game with 3 players
+        create_resp = client.post("/api/games", json={"host_nickname": "Alice"})
+        game_id = create_resp.json()["game_id"]
+        invite_code = create_resp.json()["invite_code"]
+        player1_id = create_resp.json()["player_id"]
+
+        join_resp2 = client.post(f"/api/games/join/{invite_code}", json={"nickname": "Bob"})
+        player2_id = join_resp2.json()["player_id"]
+
+        join_resp3 = client.post(f"/api/games/join/{invite_code}", json={"nickname": "Charlie"})
+        player3_id = join_resp3.json()["player_id"]
+
+        client.post(f"/api/games/{game_id}/start?player_id={player1_id}")
+
+        # All players submit
+        all_players = [player1_id, player2_id, player3_id]
+        for pid in all_players:
+            state = client.get(f"/api/games/{game_id}?player_id={pid}").json()
+            client.post(
+                f"/api/games/{game_id}/submit?player_id={pid}",
+                json={"tiles_used": state["my_tiles"][:1]},
+            )
+
+        # Judge picks themselves
+        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        judge_id = state["current_round"]["judge_id"]
+        non_judges = [p for p in all_players if p != judge_id]
+
+        client.post(
+            f"/api/games/{game_id}/judge?player_id={judge_id}",
+            json={"winner_player_id": judge_id},
+        )
+
+        # Verify judge has 1 point initially
+        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        judge_score = next(p["score"] for p in state["players"] if p["id"] == judge_id)
+        assert judge_score == 1
+
+        # Both non-judges vote to overrule
+        for pid in non_judges:
+            resp = client.post(
+                f"/api/games/{game_id}/overrule?player_id={pid}",
+                json={"vote_to_overrule": True},
+            )
+            assert resp.status_code == 200
+
+        # Verify overrule succeeded and judge's point was reverted
+        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        assert state["current_round"]["overruled"] is True
+        judge_score_after = next(p["score"] for p in state["players"] if p["id"] == judge_id)
+        assert judge_score_after == 0
+
+        # Verify winner voting is now available
+        for pid in non_judges:
+            state = client.get(f"/api/games/{game_id}?player_id={pid}").json()
+            assert state["current_round"]["can_winner_vote"] is True
+
+    def test_non_unanimous_overrule_keeps_winner(self, client: TestClient):
+        """Test that non-unanimous overrule keeps the original winner."""
+        # Create game with 3 players
+        create_resp = client.post("/api/games", json={"host_nickname": "Alice"})
+        game_id = create_resp.json()["game_id"]
+        invite_code = create_resp.json()["invite_code"]
+        player1_id = create_resp.json()["player_id"]
+
+        join_resp2 = client.post(f"/api/games/join/{invite_code}", json={"nickname": "Bob"})
+        player2_id = join_resp2.json()["player_id"]
+
+        join_resp3 = client.post(f"/api/games/join/{invite_code}", json={"nickname": "Charlie"})
+        player3_id = join_resp3.json()["player_id"]
+
+        client.post(f"/api/games/{game_id}/start?player_id={player1_id}")
+
+        # All players submit
+        all_players = [player1_id, player2_id, player3_id]
+        for pid in all_players:
+            state = client.get(f"/api/games/{game_id}?player_id={pid}").json()
+            client.post(
+                f"/api/games/{game_id}/submit?player_id={pid}",
+                json={"tiles_used": state["my_tiles"][:1]},
+            )
+
+        # Judge picks themselves
+        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        judge_id = state["current_round"]["judge_id"]
+        non_judges = [p for p in all_players if p != judge_id]
+
+        client.post(
+            f"/api/games/{game_id}/judge?player_id={judge_id}",
+            json={"winner_player_id": judge_id},
+        )
+
+        # One votes to overrule, one doesn't
+        client.post(
+            f"/api/games/{game_id}/overrule?player_id={non_judges[0]}",
+            json={"vote_to_overrule": True},
+        )
+        client.post(
+            f"/api/games/{game_id}/overrule?player_id={non_judges[1]}",
+            json={"vote_to_overrule": False},
+        )
+
+        # Verify overrule did NOT succeed and winner stays
+        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        assert state["current_round"]["overruled"] is False
+        assert state["current_round"]["winner_id"] == judge_id
+
+        # Judge still has their point
+        judge_score = next(p["score"] for p in state["players"] if p["id"] == judge_id)
+        assert judge_score == 1
+
+    def test_winner_voting_after_overrule(self, client: TestClient):
+        """Test that winner voting selects new winner by plurality."""
+        # Create game with 3 players
+        create_resp = client.post("/api/games", json={"host_nickname": "Alice"})
+        game_id = create_resp.json()["game_id"]
+        invite_code = create_resp.json()["invite_code"]
+        player1_id = create_resp.json()["player_id"]
+
+        join_resp2 = client.post(f"/api/games/join/{invite_code}", json={"nickname": "Bob"})
+        player2_id = join_resp2.json()["player_id"]
+
+        join_resp3 = client.post(f"/api/games/join/{invite_code}", json={"nickname": "Charlie"})
+        player3_id = join_resp3.json()["player_id"]
+
+        client.post(f"/api/games/{game_id}/start?player_id={player1_id}")
+
+        # All players submit
+        all_players = [player1_id, player2_id, player3_id]
+        for pid in all_players:
+            state = client.get(f"/api/games/{game_id}?player_id={pid}").json()
+            client.post(
+                f"/api/games/{game_id}/submit?player_id={pid}",
+                json={"tiles_used": state["my_tiles"][:1]},
+            )
+
+        # Judge picks themselves
+        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        judge_id = state["current_round"]["judge_id"]
+        non_judges = [p for p in all_players if p != judge_id]
+
+        client.post(
+            f"/api/games/{game_id}/judge?player_id={judge_id}",
+            json={"winner_player_id": judge_id},
+        )
+
+        # Both non-judges vote to overrule
+        for pid in non_judges:
+            client.post(
+                f"/api/games/{game_id}/overrule?player_id={pid}",
+                json={"vote_to_overrule": True},
+            )
+
+        # Both non-judges vote for the same new winner
+        new_winner_id = non_judges[0]
+        for pid in non_judges:
+            resp = client.post(
+                f"/api/games/{game_id}/vote-winner?player_id={pid}",
+                json={"winner_player_id": new_winner_id},
+            )
+            assert resp.status_code == 200
+
+        # Verify new winner was selected and has the point
+        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        assert state["current_round"]["winner_id"] == new_winner_id
+        new_winner_score = next(p["score"] for p in state["players"] if p["id"] == new_winner_id)
+        assert new_winner_score == 1
+
+    def test_two_player_game_no_overrule(self, client: TestClient):
+        """Test that 2-player games have no overrule option even if judge picks self."""
+        # Create game with 2 players
+        create_resp = client.post("/api/games", json={"host_nickname": "Alice"})
+        game_id = create_resp.json()["game_id"]
+        invite_code = create_resp.json()["invite_code"]
+        player1_id = create_resp.json()["player_id"]
+
+        join_resp = client.post(f"/api/games/join/{invite_code}", json={"nickname": "Bob"})
+        player2_id = join_resp.json()["player_id"]
+
+        client.post(f"/api/games/{game_id}/start?player_id={player1_id}")
+
+        # Both players submit
+        state1 = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        state2 = client.get(f"/api/games/{game_id}?player_id={player2_id}").json()
+
+        client.post(
+            f"/api/games/{game_id}/submit?player_id={player1_id}",
+            json={"tiles_used": state1["my_tiles"][:1]},
+        )
+        client.post(
+            f"/api/games/{game_id}/submit?player_id={player2_id}",
+            json={"tiles_used": state2["my_tiles"][:1]},
+        )
+
+        # Judge picks themselves
+        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        judge_id = state["current_round"]["judge_id"]
+
+        client.post(
+            f"/api/games/{game_id}/judge?player_id={judge_id}",
+            json={"winner_player_id": judge_id},
+        )
+
+        # Verify no overrule voting is available (only 2 players)
+        state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
+        assert state["current_round"]["judge_picked_self"] is True
+        assert state["current_round"]["can_overrule_vote"] is False

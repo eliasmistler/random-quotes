@@ -12,11 +12,13 @@ from app.models.api import (
     GameJoinedResponse,
     GameStateResponse,
     JoinGameRequest,
+    OverruleVoteRequest,
     PlayerInfo,
     RoundInfo,
     SelectWinnerRequest,
     SubmissionInfo,
     SubmitResponseRequest,
+    WinnerVoteRequest,
 )
 from app.models.common import HealthResponse
 from app.models.content import load_game_content
@@ -26,7 +28,12 @@ from app.services.game import (
     advance_round,
     advance_to_judging,
     all_submissions_in,
+    can_cast_overrule_vote,
+    can_cast_winner_vote,
+    cast_overrule_vote,
+    cast_winner_vote,
     create_game,
+    get_non_judge_player_ids,
     select_winner,
     start_game,
     submit_response,
@@ -56,6 +63,18 @@ def _build_round_info(game, player_id: str) -> RoundInfo | None:
             for s in game.current_round.submissions.values()
         ]
 
+    can_overrule = (
+        can_cast_overrule_vote(game)
+        and player_id != game.current_round.judge_id
+        and player_id not in game.current_round.overrule_votes
+    )
+
+    can_winner = (
+        can_cast_winner_vote(game)
+        and player_id != game.current_round.judge_id
+        and player_id not in game.current_round.winner_votes
+    )
+
     return RoundInfo(
         round_number=game.current_round.round_number,
         prompt=game.current_round.prompt,
@@ -64,6 +83,14 @@ def _build_round_info(game, player_id: str) -> RoundInfo | None:
         winner_id=game.current_round.winner_id,
         has_submitted=player_id in game.current_round.submissions,
         is_judge=player_id == game.current_round.judge_id,
+        judge_picked_self=game.current_round.judge_picked_self,
+        overrule_votes=game.current_round.overrule_votes,
+        can_overrule_vote=can_overrule,
+        has_cast_overrule_vote=player_id in game.current_round.overrule_votes,
+        overruled=game.current_round.overruled,
+        winner_votes=game.current_round.winner_votes,
+        can_winner_vote=can_winner,
+        has_cast_winner_vote=player_id in game.current_round.winner_votes,
     )
 
 
@@ -337,4 +364,69 @@ def advance_round_endpoint(game_id: str, player_id: str) -> ActionResponse:
         raise HTTPException(
             status_code=400,
             detail={"error": str(e), "code": "CANNOT_ADVANCE"},
+        ) from e
+
+
+@router.post(
+    "/games/{game_id}/overrule",
+    response_model=ActionResponse,
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def cast_overrule_vote_endpoint(game_id: str, player_id: str, request: OverruleVoteRequest) -> ActionResponse:
+    """Cast a vote to overrule the judge's self-pick."""
+    game = get_game(game_id)
+    if not game:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Game not found", "code": "GAME_NOT_FOUND"},
+        )
+
+    try:
+        updated_game = cast_overrule_vote(game, player_id, request.vote_to_overrule)
+        save_game(updated_game)
+
+        if updated_game.current_round and updated_game.current_round.overruled:
+            return ActionResponse(success=True, message="Overrule succeeded - vote for new winner")
+
+        non_judge_count = len(get_non_judge_player_ids(game))
+        votes_cast = len(updated_game.current_round.overrule_votes) if updated_game.current_round else 0
+
+        if votes_cast >= non_judge_count:
+            return ActionResponse(success=True, message="Overrule vote failed - original winner stands")
+
+        return ActionResponse(success=True, message="Overrule vote cast")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": str(e), "code": "CANNOT_VOTE"},
+        ) from e
+
+
+@router.post(
+    "/games/{game_id}/vote-winner",
+    response_model=ActionResponse,
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def cast_winner_vote_endpoint(game_id: str, player_id: str, request: WinnerVoteRequest) -> ActionResponse:
+    """Cast a vote for the new winner after successful overrule."""
+    game = get_game(game_id)
+    if not game:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Game not found", "code": "GAME_NOT_FOUND"},
+        )
+
+    try:
+        updated_game = cast_winner_vote(game, player_id, request.winner_player_id)
+        save_game(updated_game)
+
+        if updated_game.current_round and updated_game.current_round.winner_id is not None:
+            winner = updated_game.players[updated_game.current_round.winner_id]
+            return ActionResponse(success=True, message=f"New winner: {winner.nickname}")
+
+        return ActionResponse(success=True, message="Winner vote cast")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": str(e), "code": "CANNOT_VOTE"},
         ) from e

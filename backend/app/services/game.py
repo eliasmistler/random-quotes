@@ -125,16 +125,19 @@ def start_game(game: Game, content: GameContentConfig) -> Game:
 
 
 def start_new_round(game: Game) -> Game:
-    """Start a new round of the game."""
+    """Start a new round of the game.
+
+    Judge is NOT selected here - all players submit first,
+    then judge is selected when advancing to judging phase.
+    """
     prompt = select_next_prompt(game)
     if prompt is None:
         return game.model_copy(update={"phase": GamePhase.GAME_OVER})
 
-    judge_id = select_judge(game)
     new_round = Round(
         round_number=len(game.round_history) + 1,
         prompt=prompt,
-        judge_id=judge_id,
+        judge_id=None,  # Judge selected after all submit
     )
 
     return game.model_copy(
@@ -149,16 +152,14 @@ def start_new_round(game: Game) -> Game:
 def submit_response(game: Game, player_id: str, tiles_used: list[str]) -> Game:
     """Submit a player's response for the current round.
 
-    Raises ValueError if player is the judge or already submitted.
+    All players submit (including the future judge).
+    Raises ValueError if already submitted.
     """
     if game.phase != GamePhase.ROUND_SUBMISSION:
         raise ValueError("Not in submission phase")
 
     if game.current_round is None:
         raise ValueError("No active round")
-
-    if player_id == game.current_round.judge_id:
-        raise ValueError("Judge cannot submit a response")
 
     if player_id in game.current_round.submissions:
         raise ValueError("Player has already submitted")
@@ -193,26 +194,41 @@ def submit_response(game: Game, player_id: str, tiles_used: list[str]) -> Game:
 
 
 def all_submissions_in(game: Game) -> bool:
-    """Check if all non-judge players have submitted."""
+    """Check if all players have submitted."""
     if game.current_round is None:
         return False
 
-    expected_submissions = len(game.players) - 1
+    expected_submissions = len(game.players)
     return len(game.current_round.submissions) >= expected_submissions
 
 
 def advance_to_judging(game: Game) -> Game:
-    """Advance the game to the judging phase."""
+    """Advance the game to the judging phase.
+
+    Selects the judge now that all players have submitted.
+    """
     if game.phase != GamePhase.ROUND_SUBMISSION:
         raise ValueError("Not in submission phase")
 
-    return game.model_copy(update={"phase": GamePhase.ROUND_JUDGING})
+    if game.current_round is None:
+        raise ValueError("No active round")
+
+    judge_id = select_judge(game)
+    updated_round = game.current_round.model_copy(update={"judge_id": judge_id})
+
+    return game.model_copy(
+        update={
+            "phase": GamePhase.ROUND_JUDGING,
+            "current_round": updated_round,
+        }
+    )
 
 
 def select_winner(game: Game, winner_id: str) -> Game:
     """Judge selects the winner of the current round.
 
     Raises ValueError if not in judging phase or winner didn't submit.
+    Tracks if the judge picked themselves (for potential overrule).
     """
     if game.phase != GamePhase.ROUND_JUDGING:
         raise ValueError("Not in judging phase")
@@ -223,7 +239,14 @@ def select_winner(game: Game, winner_id: str) -> Game:
     if winner_id not in game.current_round.submissions:
         raise ValueError("Winner must be a player who submitted")
 
-    updated_round = game.current_round.model_copy(update={"winner_id": winner_id})
+    judge_picked_self = winner_id == game.current_round.judge_id
+
+    updated_round = game.current_round.model_copy(
+        update={
+            "winner_id": winner_id,
+            "judge_picked_self": judge_picked_self,
+        }
+    )
 
     winner = game.players[winner_id]
     updated_winner = winner.model_copy(update={"score": winner.score + 1})
@@ -284,3 +307,178 @@ def replenish_tiles(game: Game, content: GameContentConfig) -> Game:
             updated_players[player_id] = player
 
     return game.model_copy(update={"players": updated_players})
+
+
+def get_non_judge_player_ids(game: Game) -> list[str]:
+    """Get list of player IDs excluding the judge."""
+    if game.current_round is None or game.current_round.judge_id is None:
+        return list(game.players.keys())
+    return [pid for pid in game.players.keys() if pid != game.current_round.judge_id]
+
+
+def can_cast_overrule_vote(game: Game) -> bool:
+    """Check if overrule voting is currently possible."""
+    if game.phase != GamePhase.ROUND_RESULTS:
+        return False
+    if game.current_round is None:
+        return False
+    if not game.current_round.judge_picked_self:
+        return False
+    if len(game.players) < 3:
+        return False
+    if game.current_round.overruled:
+        return False
+    return True
+
+
+def can_cast_winner_vote(game: Game) -> bool:
+    """Check if winner voting is currently possible."""
+    if game.phase != GamePhase.ROUND_RESULTS:
+        return False
+    if game.current_round is None:
+        return False
+    if not game.current_round.overruled:
+        return False
+    if game.current_round.winner_id is not None:
+        return False
+    return True
+
+
+def cast_overrule_vote(game: Game, player_id: str, vote_to_overrule: bool) -> Game:
+    """Cast an overrule vote during the results phase.
+
+    Only non-judge players can vote, and only when:
+    - In ROUND_RESULTS phase
+    - Judge picked themselves
+    - There are 3+ players
+
+    Returns updated game. If unanimous overrule, reverts the winner's point.
+    """
+    if game.phase != GamePhase.ROUND_RESULTS:
+        raise ValueError("Not in results phase")
+
+    if game.current_round is None:
+        raise ValueError("No active round")
+
+    if not game.current_round.judge_picked_self:
+        raise ValueError("Overrule vote only available when judge picked themselves")
+
+    if len(game.players) < 3:
+        raise ValueError("Overrule vote requires 3+ players")
+
+    if player_id == game.current_round.judge_id:
+        raise ValueError("Judge cannot vote on overrule")
+
+    if player_id not in game.players:
+        raise ValueError("Player not found")
+
+    if player_id in game.current_round.overrule_votes:
+        raise ValueError("Player has already voted")
+
+    updated_votes = {**game.current_round.overrule_votes, player_id: vote_to_overrule}
+    updated_round = game.current_round.model_copy(update={"overrule_votes": updated_votes})
+    updated_game = game.model_copy(update={"current_round": updated_round})
+
+    non_judge_players = get_non_judge_player_ids(game)
+
+    if len(updated_votes) == len(non_judge_players):
+        if all(updated_votes.values()):
+            judge_id = game.current_round.judge_id
+            judge = updated_game.players[judge_id]
+            updated_judge = judge.model_copy(update={"score": judge.score - 1})
+            updated_players = {**updated_game.players, judge_id: updated_judge}
+
+            updated_round = updated_round.model_copy(
+                update={
+                    "overruled": True,
+                    "winner_id": None,
+                }
+            )
+            updated_game = updated_game.model_copy(
+                update={
+                    "current_round": updated_round,
+                    "players": updated_players,
+                }
+            )
+
+    return updated_game
+
+
+def cast_winner_vote(game: Game, voter_id: str, winner_id: str) -> Game:
+    """Cast a vote for the new winner after overrule succeeded.
+
+    Only non-judge players can vote for a new winner.
+    Winner must be a player who submitted (not the judge).
+    """
+    if game.phase != GamePhase.ROUND_RESULTS:
+        raise ValueError("Not in results phase")
+
+    if game.current_round is None:
+        raise ValueError("No active round")
+
+    if not game.current_round.overruled:
+        raise ValueError("Winner voting only available after successful overrule")
+
+    if voter_id == game.current_round.judge_id:
+        raise ValueError("Judge cannot vote for winner")
+
+    if voter_id not in game.players:
+        raise ValueError("Voter not found")
+
+    if voter_id in game.current_round.winner_votes:
+        raise ValueError("Player has already voted for winner")
+
+    if winner_id not in game.current_round.submissions:
+        raise ValueError("Winner must be a player who submitted")
+
+    if winner_id == game.current_round.judge_id:
+        raise ValueError("Cannot vote for the judge")
+
+    updated_votes = {**game.current_round.winner_votes, voter_id: winner_id}
+    updated_round = game.current_round.model_copy(update={"winner_votes": updated_votes})
+    updated_game = game.model_copy(update={"current_round": updated_round})
+
+    non_judge_players = get_non_judge_player_ids(game)
+
+    if len(updated_votes) == len(non_judge_players):
+        updated_game = determine_voted_winner(updated_game)
+
+    return updated_game
+
+
+def determine_voted_winner(game: Game) -> Game:
+    """Determine the winner based on plurality voting.
+
+    In case of tie, the player who submitted first wins.
+    """
+    if game.current_round is None:
+        raise ValueError("No active round")
+
+    winner_votes = game.current_round.winner_votes
+
+    vote_counts: dict[str, int] = {}
+    for voted_winner in winner_votes.values():
+        vote_counts[voted_winner] = vote_counts.get(voted_winner, 0) + 1
+
+    max_votes = max(vote_counts.values())
+
+    top_candidates = [pid for pid, count in vote_counts.items() if count == max_votes]
+
+    if len(top_candidates) > 1:
+        submissions = game.current_round.submissions
+        winner_id = min(top_candidates, key=lambda pid: submissions[pid].submitted_at)
+    else:
+        winner_id = top_candidates[0]
+
+    winner = game.players[winner_id]
+    updated_winner = winner.model_copy(update={"score": winner.score + 1})
+    updated_players = {**game.players, winner_id: updated_winner}
+
+    updated_round = game.current_round.model_copy(update={"winner_id": winner_id})
+
+    return game.model_copy(
+        update={
+            "current_round": updated_round,
+            "players": updated_players,
+        }
+    )
