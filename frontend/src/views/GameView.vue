@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
 
@@ -7,7 +7,75 @@ const router = useRouter()
 const gameStore = useGameStore()
 
 const pollingInterval = ref<number | null>(null)
+const timerInterval = ref<number | null>(null)
 const selectedTiles = ref<string[]>([])
+const remainingSeconds = ref<number | null>(null)
+
+// Computed properties for timer display
+const timerDisplay = computed(() => {
+  if (remainingSeconds.value === null) return null
+  const mins = Math.floor(remainingSeconds.value / 60)
+  const secs = remainingSeconds.value % 60
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+})
+
+const timerUrgent = computed(() => remainingSeconds.value !== null && remainingSeconds.value <= 15)
+
+// Submission progress
+const submissionProgress = computed(() => {
+  if (!gameStore.currentRound) return null
+  return {
+    submitted: gameStore.currentRound.submission_count,
+    total: gameStore.currentRound.total_players,
+  }
+})
+
+// Overrule vote progress for all players
+const overruleVoteProgress = computed(() => {
+  if (!gameStore.currentRound || !gameStore.judgePickedSelf) return null
+  const votes = gameStore.currentRound.overrule_votes
+  const totalVoters = gameStore.players.length - 1 // Exclude judge
+  const votesForOverrule = Object.values(votes).filter((v) => v === true).length
+  const votesAgainst = Object.values(votes).filter((v) => v === false).length
+  return {
+    votesFor: votesForOverrule,
+    votesAgainst,
+    totalVoted: Object.keys(votes).length,
+    totalVoters,
+  }
+})
+
+function updateTimer() {
+  if (!gameStore.currentRound?.started_at || !gameStore.config) {
+    remainingSeconds.value = null
+    return
+  }
+
+  const startedAt = new Date(gameStore.currentRound.started_at).getTime()
+  const timeLimit = gameStore.config.submission_time_seconds * 1000
+  const elapsed = Date.now() - startedAt
+  const remaining = Math.max(0, Math.ceil((timeLimit - elapsed) / 1000))
+  remainingSeconds.value = remaining
+}
+
+// Watch for phase changes to start/stop timer
+watch(
+  () => gameStore.phase,
+  (newPhase) => {
+    if (newPhase === 'round_submission') {
+      updateTimer()
+      if (!timerInterval.value) {
+        timerInterval.value = window.setInterval(updateTimer, 1000)
+      }
+    } else {
+      remainingSeconds.value = null
+      if (timerInterval.value) {
+        clearInterval(timerInterval.value)
+        timerInterval.value = null
+      }
+    }
+  },
+)
 
 onMounted(() => {
   if (!gameStore.isInGame) {
@@ -18,11 +86,20 @@ onMounted(() => {
   pollingInterval.value = window.setInterval(() => {
     gameStore.refreshGameState()
   }, 2000)
+
+  // Start timer if already in submission phase
+  if (gameStore.phase === 'round_submission') {
+    updateTimer()
+    timerInterval.value = window.setInterval(updateTimer, 1000)
+  }
 })
 
 onUnmounted(() => {
   if (pollingInterval.value) {
     clearInterval(pollingInterval.value)
+  }
+  if (timerInterval.value) {
+    clearInterval(timerInterval.value)
   }
 })
 
@@ -117,8 +194,34 @@ function getPlayerNickname(playerId: string): string {
         <p class="judge-info">Judge will be selected after all players submit</p>
       </div>
 
+      <!-- Timer and Progress Bar -->
+      <div class="submission-status">
+        <div class="timer" :class="{ urgent: timerUrgent }">
+          <span class="timer-icon">⏱</span>
+          <span class="timer-value">{{ timerDisplay ?? '--:--' }}</span>
+        </div>
+        <div class="progress-indicator">
+          <span class="progress-text">
+            {{ submissionProgress?.submitted ?? 0 }}/{{ submissionProgress?.total ?? 0 }} submitted
+          </span>
+          <div class="progress-bar">
+            <div
+              class="progress-fill"
+              :style="{
+                width: submissionProgress
+                  ? `${(submissionProgress.submitted / submissionProgress.total) * 100}%`
+                  : '0%',
+              }"
+            ></div>
+          </div>
+        </div>
+      </div>
+
       <div v-if="gameStore.hasSubmitted" class="waiting-message">
         <p>Response submitted! Waiting for other players...</p>
+        <p class="progress-detail">
+          {{ submissionProgress?.submitted }}/{{ submissionProgress?.total }} players have submitted
+        </p>
       </div>
 
       <div v-else class="submission-area">
@@ -229,11 +332,35 @@ function getPlayerNickname(playerId: string): string {
           </div>
 
           <div v-else-if="gameStore.hasCastOverruleVote" class="waiting-message">
-            <p>You voted. Waiting for others... ({{ gameStore.overruleVoteCount }}/{{ gameStore.players.length - 1 }})</p>
+            <p>You voted. Waiting for others...</p>
           </div>
 
           <div v-else-if="gameStore.isJudge" class="waiting-message">
             <p>Other players are voting on whether to overrule your choice...</p>
+          </div>
+
+          <!-- Voting progress visible to all players -->
+          <div v-if="overruleVoteProgress" class="vote-progress">
+            <p class="vote-progress-title">Overrule Vote Progress</p>
+            <div class="vote-progress-bar">
+              <div
+                class="vote-progress-fill for"
+                :style="{ width: `${(overruleVoteProgress.votesFor / overruleVoteProgress.totalVoters) * 100}%` }"
+              ></div>
+              <div
+                class="vote-progress-fill against"
+                :style="{
+                  width: `${(overruleVoteProgress.votesAgainst / overruleVoteProgress.totalVoters) * 100}%`,
+                  left: `${(overruleVoteProgress.votesFor / overruleVoteProgress.totalVoters) * 100}%`,
+                }"
+              ></div>
+            </div>
+            <div class="vote-progress-labels">
+              <span class="for-label">{{ overruleVoteProgress.votesFor }} for overrule</span>
+              <span class="against-label">{{ overruleVoteProgress.votesAgainst }} against</span>
+              <span class="pending-label">{{ overruleVoteProgress.totalVoters - overruleVoteProgress.totalVoted }} pending</span>
+            </div>
+            <p class="vote-progress-note">Requires unanimous vote to overrule</p>
           </div>
         </div>
 
@@ -737,5 +864,150 @@ function getPlayerNickname(playerId: string): string {
   padding: 0.1rem 0.4rem;
   border-radius: 4px;
   margin-left: 0.5rem;
+}
+
+/* Timer and submission progress styles */
+.submission-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--color-background-soft);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.timer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: bold;
+  padding: 0.5rem 1rem;
+  background: var(--color-background);
+  border-radius: 8px;
+  min-width: 100px;
+  justify-content: center;
+}
+
+.timer.urgent {
+  background: #ffebee;
+  color: #c62828;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.timer-icon {
+  font-size: 1.2rem;
+}
+
+.progress-indicator {
+  flex: 1;
+  max-width: 300px;
+}
+
+.progress-text {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.progress-bar {
+  height: 12px;
+  background: var(--color-background);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.progress-detail {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+/* Vote progress styles */
+.vote-progress {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--color-background-soft);
+  border-radius: 8px;
+}
+
+.vote-progress-title {
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  text-align: center;
+}
+
+.vote-progress-bar {
+  height: 24px;
+  background: var(--color-background);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 0.5rem;
+}
+
+.vote-progress-fill {
+  height: 100%;
+  position: absolute;
+  top: 0;
+  transition: width 0.3s ease;
+}
+
+.vote-progress-fill.for {
+  background: linear-gradient(90deg, #dc3545, #e57373);
+  left: 0;
+}
+
+.vote-progress-fill.against {
+  background: linear-gradient(90deg, #4caf50, #81c784);
+}
+
+.vote-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.for-label {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+.against-label {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.pending-label {
+  opacity: 0.7;
+}
+
+.vote-progress-note {
+  font-size: 0.8rem;
+  text-align: center;
+  opacity: 0.7;
+  margin-top: 0.5rem;
+  font-style: italic;
 }
 </style>

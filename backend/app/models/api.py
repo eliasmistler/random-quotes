@@ -1,5 +1,7 @@
 """API request and response models."""
 
+from datetime import datetime
+
 from pydantic import BaseModel
 
 from app.models.game import GameConfig, GamePhase, Player, Prompt
@@ -86,6 +88,10 @@ class RoundInfo(BaseModel):
     winner_id: str | None
     has_submitted: bool
     is_judge: bool
+    # Submission progress
+    submission_count: int = 0
+    total_players: int = 0
+    started_at: datetime | None = None
     # Overrule voting state
     judge_picked_self: bool = False
     overrule_votes: dict[str, bool] = {}

@@ -120,7 +120,7 @@ class TestGameConfig:
         """Test game config default values."""
         config = GameConfig()
 
-        assert config.tiles_per_player == 15
+        assert config.tiles_per_player == 45
         assert config.points_to_win == 5
         assert config.submission_time_seconds == 90
         assert config.judging_time_seconds == 60

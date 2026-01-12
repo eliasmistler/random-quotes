@@ -49,6 +49,10 @@ export interface RoundInfo {
   winner_id: string | null
   has_submitted: boolean
   is_judge: boolean
+  // Submission progress
+  submission_count: number
+  total_players: number
+  started_at: string | null // ISO datetime string
   // Overrule voting state
   judge_picked_self: boolean
   overrule_votes: Record<string, boolean>

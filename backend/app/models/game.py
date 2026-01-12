@@ -1,6 +1,6 @@
 """Core domain models for the Ransom Notes game."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from uuid import uuid4
 
@@ -41,7 +41,7 @@ class Submission(BaseModel):
     player_id: str
     tiles_used: list[str]
     response_text: str
-    submitted_at: datetime = Field(default_factory=datetime.utcnow)
+    submitted_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class Round(BaseModel):
@@ -52,6 +52,7 @@ class Round(BaseModel):
     judge_id: str | None = None  # Selected after all players submit
     submissions: dict[str, Submission] = Field(default_factory=dict)
     winner_id: str | None = None
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     # Overrule voting fields (when judge picks themselves with 3+ players)
     judge_picked_self: bool = False
     overrule_votes: dict[str, bool] = Field(default_factory=dict)  # player_id -> vote_to_overrule
@@ -62,7 +63,7 @@ class Round(BaseModel):
 class GameConfig(BaseModel):
     """Game configuration settings."""
 
-    tiles_per_player: int = 15
+    tiles_per_player: int = 45
     points_to_win: int = 5
     submission_time_seconds: int = 90
     judging_time_seconds: int = 60
@@ -80,7 +81,7 @@ class Game(BaseModel):
     current_round: Round | None = None
     round_history: list[Round] = Field(default_factory=list)
     config: GameConfig = Field(default_factory=GameConfig)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     word_pool: list[str] = Field(default_factory=list)
     prompts_pool: list[Prompt] = Field(default_factory=list)
     used_prompt_ids: list[str] = Field(default_factory=list)
