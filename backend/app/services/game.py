@@ -7,7 +7,7 @@ import random
 import string
 
 from app.models.content import GameContentConfig
-from app.models.game import Game, GameConfig, GamePhase, Player, Prompt, Round
+from app.models.game import Game, GameConfig, GamePhase, Player, Prompt, Round, Submission
 
 
 def generate_invite_code(length: int = 6) -> str:
@@ -20,9 +20,7 @@ def create_player(nickname: str, is_host: bool = False) -> Player:
     return Player(nickname=nickname, is_host=is_host)
 
 
-def create_game(
-    host_nickname: str, config: GameConfig | None = None
-) -> tuple[Game, Player]:
+def create_game(host_nickname: str, config: GameConfig | None = None) -> tuple[Game, Player]:
     """Create a new game with a host player.
 
     Returns a tuple of (game, host_player).
@@ -121,9 +119,7 @@ def start_game(game: Game, content: GameContentConfig) -> Game:
         raise ValueError(f"Not enough players. Need at least {game.config.min_players}")
 
     game_with_tiles = distribute_tiles(game, content)
-    game_with_prompts = game_with_tiles.model_copy(
-        update={"prompts_pool": create_prompts_pool(content)}
-    )
+    game_with_prompts = game_with_tiles.model_copy(update={"prompts_pool": create_prompts_pool(content)})
 
     return start_new_round(game_with_prompts)
 
@@ -175,8 +171,6 @@ def submit_response(game: Game, player_id: str, tiles_used: list[str]) -> Game:
         if tile not in player.word_tiles:
             raise ValueError(f"Player does not have tile: {tile}")
 
-    from app.models.game import Submission
-
     submission = Submission(
         player_id=player_id,
         tiles_used=tiles_used,
@@ -184,9 +178,7 @@ def submit_response(game: Game, player_id: str, tiles_used: list[str]) -> Game:
     )
 
     updated_submissions = {**game.current_round.submissions, player_id: submission}
-    updated_round = game.current_round.model_copy(
-        update={"submissions": updated_submissions}
-    )
+    updated_round = game.current_round.model_copy(update={"submissions": updated_submissions})
 
     remaining_tiles = [t for t in player.word_tiles if t not in tiles_used]
     updated_player = player.model_copy(update={"word_tiles": remaining_tiles})
@@ -267,9 +259,7 @@ def advance_round(game: Game, content: GameContentConfig) -> Game:
     if game.current_round is None:
         raise ValueError("No current round")
 
-    game_with_history = game.model_copy(
-        update={"round_history": [*game.round_history, game.current_round]}
-    )
+    game_with_history = game.model_copy(update={"round_history": [*game.round_history, game.current_round]})
 
     if check_game_over(game_with_history):
         return game_with_history.model_copy(update={"phase": GamePhase.GAME_OVER})
@@ -289,9 +279,7 @@ def replenish_tiles(game: Game, content: GameContentConfig) -> Game:
         if tiles_needed > 0:
             new_tiles = draw_tiles(content.words, tiles_needed)
             all_tiles = player.word_tiles + new_tiles
-            updated_players[player_id] = player.model_copy(
-                update={"word_tiles": all_tiles}
-            )
+            updated_players[player_id] = player.model_copy(update={"word_tiles": all_tiles})
         else:
             updated_players[player_id] = player
 
