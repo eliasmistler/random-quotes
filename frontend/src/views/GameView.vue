@@ -551,50 +551,75 @@ function getPlayerNickname(playerId: string): string {
 }
 
 .selected-preview {
-  background: var(--color-background-soft);
-  padding: 1rem;
-  border-radius: 8px;
-  min-height: 60px;
+  background: #f5f5dc;
+  padding: 1.5rem;
+  border-radius: 4px;
+  min-height: 70px;
   margin-bottom: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 2px dashed #8b7355;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .placeholder {
   opacity: 0.5;
   font-style: italic;
+  font-family: 'Courier New', Courier, monospace;
 }
 
 .preview-text {
-  font-size: 1.2rem;
-  font-weight: 500;
+  font-size: 1.1rem;
+  font-weight: 600;
+  font-family: 'Courier New', Courier, monospace;
+  color: #1a1a1a;
+  text-transform: lowercase;
 }
 
 .tiles-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #d4c4a8;
+  border-radius: 8px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .tile {
-  padding: 0.5rem 0.75rem;
-  background: var(--color-background-soft);
-  border: 2px solid var(--color-border);
-  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  background: #ffffff;
+  color: #1a1a1a;
+  border: 1px solid #ccc;
+  border-radius: 2px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 600;
+  font-size: 0.95rem;
+  box-shadow:
+    1px 1px 2px rgba(0, 0, 0, 0.15),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  text-transform: lowercase;
 }
 
 .tile:hover {
-  border-color: #667eea;
+  transform: scale(1.05) rotate(-1deg);
+  box-shadow:
+    2px 2px 4px rgba(0, 0, 0, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
 }
 
 .tile.selected {
-  background: #667eea;
-  color: white;
-  border-color: #667eea;
+  background: #2d2d2d;
+  color: #ffffff;
+  border-color: #1a1a1a;
+  transform: scale(1.05);
+  box-shadow:
+    2px 2px 4px rgba(0, 0, 0, 0.3),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .submit-btn {
@@ -626,17 +651,23 @@ function getPlayerNickname(playerId: string): string {
 
 .submission-card {
   padding: 1.5rem;
-  background: var(--color-background-soft);
-  border: 2px solid var(--color-border);
-  border-radius: 8px;
+  background: #f5f5dc;
+  border: 2px solid #8b7355;
+  border-radius: 4px;
   font-size: 1.1rem;
   cursor: pointer;
   transition: all 0.2s;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-transform: lowercase;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .submission-card:hover:not(.readonly) {
-  border-color: #667eea;
-  transform: scale(1.02);
+  border-color: #5d4e37;
+  transform: scale(1.02) rotate(-0.5deg);
+  box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.2);
 }
 
 .submission-card.readonly {
@@ -662,6 +693,9 @@ function getPlayerNickname(playerId: string): string {
 
 .winner-answer {
   font-size: 1.2rem;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 600;
+  text-transform: lowercase;
 }
 
 .all-submissions {
@@ -674,10 +708,17 @@ function getPlayerNickname(playerId: string): string {
 
 .submission-result {
   padding: 0.75rem;
-  background: var(--color-background-soft);
+  background: #f5f5dc;
+  border: 1px solid #d4c4a8;
   border-radius: 4px;
   margin-bottom: 0.5rem;
   text-align: left;
+}
+
+.submission-result .answer {
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 600;
+  text-transform: lowercase;
 }
 
 .submission-result.winner {
