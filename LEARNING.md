@@ -1,323 +1,369 @@
-# Learning WebSockets, TypeScript, and Vue Through Ransom Notes
+# Upgrading to WebSockets: A Hands-On Guide
 
-This guide will teach you WebSockets, TypeScript, and Vue.js concepts using your actual game code.
+This guide walks you through replacing the 2-second polling with WebSockets. Code snippets are intentionally brief - you'll learn more by figuring out the details yourself.
 
-## Table of Contents
-1. [WebSockets Overview](#websockets-overview)
-2. [TypeScript Fundamentals](#typescript-fundamentals)
-3. [Vue 3 Composition API](#vue-3-composition-api)
-4. [Implementing Real-time Features](#implementing-real-time-features)
+## Overview
+
+**Current approach**: Views poll `refreshGameState()` every 2 seconds
+**Target approach**: Server pushes updates to all connected clients instantly
+
+```
+Before: Client → GET /games/{id} → Server (every 2s, per client)
+After:  Server → WebSocket → All Clients (on state change, once)
+```
 
 ---
 
-## WebSockets Overview
+## Part 1: Backend - Connection Manager
 
-### What Are WebSockets?
+Create a new file `backend/app/services/websocket.py` to manage WebSocket connections.
 
-WebSockets provide **full-duplex** communication between a client and server. Unlike HTTP:
+### 1.1 ConnectionManager Class
 
-- **HTTP**: Client requests → Server responds → Connection closes
-- **WebSocket**: Client ↔ Server maintain an open connection for bidirectional communication
-
-### Why WebSockets for Ransom Notes?
-
-Your game needs real-time updates:
-- When a player joins, all players should see them instantly
-- When the host starts the game, everyone transitions together
-- When players submit answers, the judge sees them immediately
-- When a winner is chosen, scores update for everyone
-
-### WebSocket Lifecycle
-
-```
-1. Handshake (HTTP Upgrade)
-   Client: "Hey, let's upgrade to WebSocket!"
-   Server: "Sure! Connection established."
-
-2. Open Connection
-   - Both sides can send messages anytime
-   - Messages are events (not request/response)
-
-3. Message Exchange
-   Client → Server: "I submitted my answer"
-   Server → All Clients: "Player X submitted"
-
-4. Close
-   Either side can close the connection
-```
-
-### WebSocket Events in FastAPI
+You need a class that:
+- Stores active connections grouped by `game_id`
+- Has methods: `connect()`, `disconnect()`, `broadcast()`
 
 ```python
-@router.websocket("/ws/game/{game_id}")
-async def game_websocket(
-    websocket: WebSocket,
-    game_id: str,
-    player_id: str  # Usually from query params
-):
-    # 1. Accept the connection
-    await websocket.accept()
+from fastapi import WebSocket
 
+class ConnectionManager:
+    def __init__(self):
+        # Hint: dict of game_id -> list of WebSocket connections
+        self.active_connections: dict[str, list[WebSocket]] = {}
+```
+
+**Your tasks:**
+1. Implement `async def connect(self, game_id: str, websocket: WebSocket)`
+   - Accept the WebSocket connection
+   - Add it to the list for that game_id
+
+2. Implement `def disconnect(self, game_id: str, websocket: WebSocket)`
+   - Remove the connection from the list
+   - Clean up empty game entries
+
+3. Implement `async def broadcast(self, game_id: str, message: dict)`
+   - Send the message to ALL connections for that game_id
+   - Handle any disconnected clients gracefully
+
+Create a singleton instance at the bottom:
+```python
+manager = ConnectionManager()
+```
+
+---
+
+## Part 2: Backend - WebSocket Endpoint
+
+Add a WebSocket route in `backend/app/api/routes.py`.
+
+### 2.1 Basic Endpoint
+
+```python
+from fastapi import WebSocket, WebSocketDisconnect
+from app.services.websocket import manager
+
+@router.websocket("/ws/game/{game_id}")
+async def game_websocket(websocket: WebSocket, game_id: str, player_id: str):
+    # 1. Connect
+    await manager.connect(game_id, websocket)
     try:
-        # 2. Listen for messages
+        # 2. Keep connection alive, listen for messages
         while True:
             data = await websocket.receive_json()
-            # Process the message
-
-            # 3. Send messages back
-            await websocket.send_json({"type": "update", "data": ...})
-
+            # For now, just echo or ignore
     except WebSocketDisconnect:
-        # 4. Handle disconnection
-        print(f"Player {player_id} disconnected")
+        # 3. Clean up on disconnect
+        manager.disconnect(game_id, websocket)
 ```
+
+### 2.2 Broadcast on State Changes
+
+When game state changes (player joins, submits, etc.), broadcast to all players.
+
+Find places in your routes where state changes occur and add:
+```python
+await manager.broadcast(game_id, {"type": "game_update"})
+```
+
+Key locations to add broadcasts:
+- `join_game_route` - when a player joins
+- `start_game_route` - when game starts
+- `submit_response_route` - when a player submits
+- `select_winner_route` - when winner is chosen
+- `advance_round_route` - when round advances
 
 ---
 
-## TypeScript Fundamentals
+## Part 3: Frontend - WebSocket Service
 
-### Why TypeScript?
+Create `frontend/src/services/websocket.ts`.
 
-TypeScript adds **type safety** to JavaScript. It catches errors before runtime:
-
-```typescript
-// JavaScript - Error at runtime! 💥
-const player = { name: "Alice" }
-console.log(player.score)  // undefined - oops!
-
-// TypeScript - Error at compile time! ✅
-interface Player {
-  name: string
-  score: number  // We know this is required
-}
-const player: Player = { name: "Alice" }  // Error: missing 'score'
-```
-
-### Core Concepts in Your Game
-
-#### 1. **Primitive Types**
+### 3.1 Basic WebSocket Class
 
 ```typescript
-// In your game
-const gameId: string = "abc-123"
-const playerCount: number = 4
-const isHost: boolean = true
-const tiles: string[] = ["cat", "dog", "house"]
-```
+type MessageHandler = (data: unknown) => void
 
-#### 2. **Interfaces** (Shape of Objects)
+export class GameWebSocket {
+  private ws: WebSocket | null = null
+  private messageHandler: MessageHandler | null = null
 
-Look at `frontend/src/types/game.ts`:
+  connect(gameId: string, playerId: string): void {
+    const url = `ws://localhost:8000/api/ws/game/${gameId}?player_id=${playerId}`
+    this.ws = new WebSocket(url)
 
-```typescript
-export interface PlayerInfo {
-  id: string
-  nickname: string
-  score: number
-  is_host: boolean
-  is_connected: boolean
-}
-```
+    this.ws.onmessage = (event) => {
+      // Parse JSON and call handler
+    }
 
-This says: "A PlayerInfo must have these exact properties with these types."
-
-#### 3. **Type Aliases** (Union Types)
-
-```typescript
-export type GamePhase = 'lobby' | 'playing' | 'judging' | 'round_end' | 'game_over'
-```
-
-This means: "GamePhase can ONLY be one of these five string values."
-
-```typescript
-let phase: GamePhase = 'lobby'  // ✅ OK
-phase = 'waiting'  // ❌ Error: "waiting" is not a valid GamePhase
-```
-
-#### 4. **Generics** (Reusable Types)
-
-```typescript
-// A generic response wrapper
-interface ApiResponse<T> {
-  success: boolean
-  data: T  // T can be any type!
-}
-
-// Now we can use it with different data types
-const gameResponse: ApiResponse<GameCreatedResponse> = {
-  success: true,
-  data: { game_id: "123", player_id: "456", ... }
-}
-
-const playerResponse: ApiResponse<PlayerInfo> = {
-  success: true,
-  data: { id: "789", nickname: "Bob", ... }
-}
-```
-
-#### 5. **Optional Properties**
-
-```typescript
-interface GameConfig {
-  max_players: number
-  rounds_to_win: number
-  time_limit?: number  // ? means optional
-}
-
-// Both valid:
-const config1: GameConfig = { max_players: 8, rounds_to_win: 5 }
-const config2: GameConfig = { max_players: 8, rounds_to_win: 5, time_limit: 60 }
-```
-
-#### 6. **Function Types**
-
-```typescript
-// Type for a function that takes a string and returns a Promise of PlayerInfo
-type JoinGameFn = (inviteCode: string, nickname: string) => Promise<GameJoinedResponse>
-
-// Using it:
-const joinGame: JoinGameFn = async (code, nick) => {
-  const response = await fetch(...)
-  return response.json()
-}
-```
-
----
-
-## Vue 3 Composition API
-
-### Reactivity System
-
-Vue's magic is **reactivity** - when data changes, the UI updates automatically.
-
-#### `ref()` - Reactive Primitive Values
-
-```typescript
-import { ref } from 'vue'
-
-// Create a reactive value
-const count = ref(0)
-
-// Access value with .value
-console.log(count.value)  // 0
-
-// Changing it triggers UI updates
-count.value++  // UI re-renders!
-```
-
-In your game store (`stores/game.ts`):
-
-```typescript
-const gameId = ref<string | null>(null)  // Generic: ref of string or null
-const players = ref<PlayerInfo[]>([])     // ref of PlayerInfo array
-```
-
-#### `computed()` - Derived State
-
-```typescript
-import { computed } from 'vue'
-
-const players = ref<PlayerInfo[]>([
-  { id: '1', nickname: 'Alice', score: 5, is_host: true, is_connected: true },
-  { id: '2', nickname: 'Bob', score: 3, is_host: false, is_connected: true }
-])
-
-// Computed value automatically updates when players changes
-const playerCount = computed(() => players.value.length)
-
-console.log(playerCount.value)  // 2
-
-players.value.push({ id: '3', nickname: 'Charlie', ... })
-console.log(playerCount.value)  // 3 - automatically updated!
-```
-
-#### Pinia Stores (State Management)
-
-Your game store is the "single source of truth" for game state:
-
-```typescript
-export const useGameStore = defineStore('game', () => {
-  // State (reactive data)
-  const gameId = ref<string | null>(null)
-  const players = ref<PlayerInfo[]>([])
-
-  // Getters (computed values)
-  const isInGame = computed(() => gameId.value !== null)
-
-  // Actions (functions that modify state)
-  async function createGame(nickname: string) {
-    const response = await api.createGame(nickname)
-    gameId.value = response.game_id  // Update state
+    this.ws.onclose = () => {
+      // Handle reconnection?
+    }
   }
 
-  // Return everything you want to expose
-  return { gameId, players, isInGame, createGame }
+  onMessage(handler: MessageHandler): void {
+    this.messageHandler = handler
+  }
+
+  disconnect(): void {
+    // Close the connection
+  }
+}
+```
+
+**Your tasks:**
+1. Complete `onmessage` to parse JSON and call the handler
+2. Implement `disconnect()` to close cleanly
+3. Consider: What happens if connection drops? Add reconnection logic?
+
+---
+
+## Part 4: Integrate with Pinia Store
+
+Update `frontend/src/stores/game.ts` to use WebSockets.
+
+### 4.1 Add WebSocket to Store
+
+```typescript
+import { GameWebSocket } from '@/services/websocket'
+
+// Inside defineStore:
+const ws = new GameWebSocket()
+
+function connectWebSocket() {
+  if (!gameId.value || !playerId.value) return
+
+  ws.onMessage(async (data) => {
+    // When we receive an update, refresh state
+    if ((data as {type: string}).type === 'game_update') {
+      await refreshGameState()
+    }
+  })
+
+  ws.connect(gameId.value, playerId.value)
+}
+```
+
+### 4.2 Connect After Join/Create
+
+Call `connectWebSocket()` at the end of:
+- `createGame()`
+- `joinGame()`
+
+### 4.3 Disconnect on Leave
+
+Update `leaveGame()`:
+```typescript
+function leaveGame() {
+  ws.disconnect()
+  // ... existing cleanup
+}
+```
+
+---
+
+## Part 5: Remove Polling from Views
+
+### 5.1 LobbyView.vue
+
+Remove:
+- `pollingInterval` ref
+- `setInterval` in `onMounted`
+- `clearInterval` in `onUnmounted`
+
+### 5.2 GameView.vue
+
+Remove the same polling code. Keep the timer interval for the countdown (that's different - it's UI-only).
+
+---
+
+## Part 6: Testing
+
+### Manual Testing Checklist
+
+1. **Basic connection test**
+   - Open browser DevTools → Network → WS tab
+   - Create/join a game
+   - Verify WebSocket connection appears and stays "101 Switching Protocols"
+
+2. **Multi-client test**
+   - Open two browser windows (or incognito)
+   - Create game in window 1, join in window 2
+   - Verify both see player list update instantly (no 2s delay)
+
+3. **Disconnect handling**
+   - Connect, then stop the backend server
+   - Check browser console for errors
+   - Restart server, verify reconnection (if implemented)
+
+4. **Full game flow test**
+   - Play through a complete game with 2+ windows
+   - Verify all transitions happen simultaneously:
+     - Game start
+     - Submissions appearing for judge
+     - Winner announcement
+     - Score updates
+
+### Automated Testing - Backend
+
+Create `backend/tests/test_websocket.py`:
+
+```python
+import pytest
+from fastapi.testclient import TestClient
+
+def test_websocket_connects(client: TestClient):
+    """Test that WebSocket connection can be established."""
+    # First create a game via REST to get game_id and player_id
+    response = client.post("/api/games", json={"host_nickname": "TestHost"})
+    data = response.json()
+    game_id = data["game_id"]
+    player_id = data["player_id"]
+
+    # Now test WebSocket connection
+    with client.websocket_connect(
+        f"/api/ws/game/{game_id}?player_id={player_id}"
+    ) as websocket:
+        # Connection succeeded if we get here
+        # Optionally send/receive a test message
+        pass
+
+def test_broadcast_on_player_join(client: TestClient):
+    """Test that existing players receive broadcast when new player joins."""
+    # 1. Create game, get credentials
+    # 2. Connect player 1 via WebSocket
+    # 3. Join player 2 via REST API
+    # 4. Assert player 1's WebSocket received a message
+    pass  # Implement this!
+```
+
+**Hint**: `TestClient.websocket_connect()` returns a context manager. Use `websocket.receive_json()` to wait for messages.
+
+### Automated Testing - Frontend (Optional)
+
+If you want to unit test the WebSocket service with Vitest:
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { GameWebSocket } from '@/services/websocket'
+
+describe('GameWebSocket', () => {
+  let mockWs: { onmessage: any; close: any }
+
+  beforeEach(() => {
+    mockWs = { onmessage: null, close: vi.fn() }
+    vi.stubGlobal('WebSocket', vi.fn(() => mockWs))
+  })
+
+  it('calls handler when message received', () => {
+    const ws = new GameWebSocket()
+    const handler = vi.fn()
+
+    ws.onMessage(handler)
+    ws.connect('game123', 'player456')
+
+    // Simulate receiving a message
+    mockWs.onmessage({ data: JSON.stringify({ type: 'game_update' }) })
+
+    expect(handler).toHaveBeenCalledWith({ type: 'game_update' })
+  })
 })
 ```
 
-Using it in a component:
+---
 
-```typescript
-import { useGameStore } from '@/stores/game'
+## Debugging Tips
 
-const gameStore = useGameStore()
+1. **Browser DevTools**
+   - Network tab → WS filter → Click connection → Messages tab
+   - See all sent/received WebSocket frames
 
-// Access state
-console.log(gameStore.gameId)
+2. **Backend logging**
+   ```python
+   import logging
+   logger = logging.getLogger(__name__)
 
-// Call actions
-await gameStore.createGame('Alice')
-```
+   # In ConnectionManager methods:
+   logger.info(f"Player connected to game {game_id}")
+   logger.info(f"Broadcasting to {len(connections)} clients")
+   ```
+
+3. **Common issues**
+   - **Connection closes immediately**: Check `player_id` query param is being passed
+   - **No messages received**: Verify `broadcast()` is being called in routes
+   - **CORS errors**: WebSocket URL must use `ws://` not `http://`
+   - **JSON parse errors**: Both sides must send valid JSON
 
 ---
 
-## Implementing Real-time Features
+## Checklist
 
-Now let's add WebSockets to make your game real-time! We'll build:
+Use this to track your progress:
 
-1. **Backend**: WebSocket connection manager
-2. **Frontend**: WebSocket service (TypeScript)
-3. **Store Integration**: Update Vue store from WebSocket events
-4. **UI**: Real-time lobby updates
+- [ ] **Backend: ConnectionManager** (`services/websocket.py`)
+  - [ ] `connect()` method
+  - [ ] `disconnect()` method
+  - [ ] `broadcast()` method
 
-### Architecture
+- [ ] **Backend: WebSocket endpoint** (`api/routes.py`)
+  - [ ] Basic `/ws/game/{game_id}` endpoint
+  - [ ] Broadcast on player join
+  - [ ] Broadcast on game start
+  - [ ] Broadcast on submission
+  - [ ] Broadcast on winner selection
+  - [ ] Broadcast on round advance
 
-```
-┌─────────────────────────────────────────────────┐
-│                   Frontend                       │
-│                                                  │
-│  ┌────────────┐         ┌─────────────────┐    │
-│  │ Component  │ ◄──────►│  Pinia Store    │    │
-│  │ (Vue)      │         │  (game.ts)      │    │
-│  └────────────┘         └────────┬────────┘    │
-│                                   │              │
-│                         ┌─────────▼────────┐    │
-│                         │ WebSocket Service│    │
-│                         │ (TypeScript)     │    │
-│                         └─────────┬────────┘    │
-└─────────────────────────────────┬─┴──────────────┘
-                                  │
-                    WebSocket Connection (ws://)
-                                  │
-┌─────────────────────────────────┴─┬─────────────┐
-│                  Backend            │            │
-│                                     │            │
-│  ┌──────────────────────────────────▼─────────┐ │
-│  │     WebSocket Endpoint (FastAPI)           │ │
-│  │     /ws/game/{game_id}                     │ │
-│  └──────────────────┬─────────────────────────┘ │
-│                     │                            │
-│  ┌──────────────────▼─────────────────────────┐ │
-│  │  Connection Manager                        │ │
-│  │  - Tracks active connections               │ │
-│  │  - Broadcasts to all players in a game     │ │
-│  └──────────────────┬─────────────────────────┘ │
-│                     │                            │
-│  ┌──────────────────▼─────────────────────────┐ │
-│  │        Game Service                        │ │
-│  │        (Existing game logic)               │ │
-│  └────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────┘
-```
+- [ ] **Frontend: WebSocket service** (`services/websocket.ts`)
+  - [ ] `connect()` method
+  - [ ] `onMessage()` handler
+  - [ ] `disconnect()` method
 
-See the implementation files for details!
+- [ ] **Frontend: Store integration** (`stores/game.ts`)
+  - [ ] Add WebSocket instance
+  - [ ] Connect after create/join
+  - [ ] Disconnect on leave
+
+- [ ] **Frontend: Remove polling**
+  - [ ] LobbyView.vue
+  - [ ] GameView.vue
+
+- [ ] **Testing**
+  - [ ] Manual: Connection appears in DevTools
+  - [ ] Manual: Multi-client updates work
+  - [ ] Automated: `test_websocket.py` passes
+
+---
+
+## Quick Reference
+
+| File | Purpose |
+|------|---------|
+| `backend/app/services/websocket.py` | ConnectionManager class |
+| `backend/app/api/routes.py` | WebSocket endpoint + broadcast calls |
+| `frontend/src/services/websocket.ts` | GameWebSocket class |
+| `frontend/src/stores/game.ts` | Store integration |
+| `frontend/src/views/LobbyView.vue` | Remove polling |
+| `frontend/src/views/GameView.vue` | Remove polling |
+| `backend/tests/test_websocket.py` | Backend WebSocket tests |
+
+Good luck! Take it one part at a time and test frequently.
