@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from app.models.api import (
     ActionResponse,
@@ -39,6 +39,7 @@ from app.services.game import (
     submit_response,
 )
 from app.services.store import get_game, get_game_by_invite_code, save_game
+from app.services.websocket import manager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -128,7 +129,7 @@ def create_new_game(request: CreateGameRequest) -> GameCreatedResponse:
     response_model=GameJoinedResponse,
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
 )
-def join_game(invite_code: str, request: JoinGameRequest) -> GameJoinedResponse:
+async def join_game(invite_code: str, request: JoinGameRequest) -> GameJoinedResponse:
     """Join an existing game using an invite code."""
     game = get_game_by_invite_code(invite_code)
     if not game:
@@ -140,6 +141,7 @@ def join_game(invite_code: str, request: JoinGameRequest) -> GameJoinedResponse:
     try:
         updated_game, new_player = add_player_to_game(game, request.nickname)
         save_game(updated_game)
+        await manager.broadcast({"type": "game_update"}, updated_game.id)
         return GameJoinedResponse(
             game_id=updated_game.id,
             player_id=new_player.id,
@@ -200,7 +202,7 @@ def get_game_state(game_id: str, player_id: str) -> GameStateResponse:
     response_model=ActionResponse,
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
 )
-def start_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
+async def start_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
     """Start the game. Only the host can start the game."""
     logger.info("Start game request: game_id=%s, player_id=%s", game_id, player_id)
 
@@ -241,6 +243,7 @@ def start_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
     try:
         updated_game = start_game(game, _game_content)
         save_game(updated_game)
+        await manager.broadcast({"type": "game_update"}, game_id)
         logger.info("Game started successfully: game_id=%s", game_id)
         return ActionResponse(success=True, message="Game started")
     except ValueError as e:
@@ -265,7 +268,7 @@ def start_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
     response_model=ActionResponse,
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
 )
-def submit_response_endpoint(game_id: str, player_id: str, request: SubmitResponseRequest) -> ActionResponse:
+async def submit_response_endpoint(game_id: str, player_id: str, request: SubmitResponseRequest) -> ActionResponse:
     """Submit a response for the current round."""
     game = get_game(game_id)
     if not game:
@@ -281,6 +284,7 @@ def submit_response_endpoint(game_id: str, player_id: str, request: SubmitRespon
             updated_game = advance_to_judging(updated_game)
 
         save_game(updated_game)
+        await manager.broadcast({"type": "game_update"}, game_id)
         return ActionResponse(success=True, message="Response submitted")
     except ValueError as e:
         raise HTTPException(
@@ -294,7 +298,7 @@ def submit_response_endpoint(game_id: str, player_id: str, request: SubmitRespon
     response_model=ActionResponse,
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
 )
-def select_winner_endpoint(game_id: str, player_id: str, request: SelectWinnerRequest) -> ActionResponse:
+async def select_winner_endpoint(game_id: str, player_id: str, request: SelectWinnerRequest) -> ActionResponse:
     """Judge selects the winner of the current round."""
     game = get_game(game_id)
     if not game:
@@ -318,6 +322,7 @@ def select_winner_endpoint(game_id: str, player_id: str, request: SelectWinnerRe
     try:
         updated_game = select_winner(game, request.winner_player_id)
         save_game(updated_game)
+        await manager.broadcast({"type": "game_update"}, game_id)
         return ActionResponse(success=True, message="Winner selected")
     except ValueError as e:
         raise HTTPException(
@@ -331,7 +336,7 @@ def select_winner_endpoint(game_id: str, player_id: str, request: SelectWinnerRe
     response_model=ActionResponse,
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
 )
-def advance_round_endpoint(game_id: str, player_id: str) -> ActionResponse:
+async def advance_round_endpoint(game_id: str, player_id: str) -> ActionResponse:
     """Advance to the next round after results are shown."""
     game = get_game(game_id)
     if not game:
@@ -359,6 +364,7 @@ def advance_round_endpoint(game_id: str, player_id: str) -> ActionResponse:
     try:
         updated_game = advance_round(game, _game_content)
         save_game(updated_game)
+        await manager.broadcast({"type": "game_update"}, game_id)
 
         if updated_game.phase == GamePhase.GAME_OVER:
             return ActionResponse(success=True, message="Game over")
@@ -375,7 +381,7 @@ def advance_round_endpoint(game_id: str, player_id: str) -> ActionResponse:
     response_model=ActionResponse,
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
 )
-def cast_overrule_vote_endpoint(game_id: str, player_id: str, request: OverruleVoteRequest) -> ActionResponse:
+async def cast_overrule_vote_endpoint(game_id: str, player_id: str, request: OverruleVoteRequest) -> ActionResponse:
     """Cast a vote to overrule the judge's self-pick."""
     game = get_game(game_id)
     if not game:
@@ -387,6 +393,7 @@ def cast_overrule_vote_endpoint(game_id: str, player_id: str, request: OverruleV
     try:
         updated_game = cast_overrule_vote(game, player_id, request.vote_to_overrule)
         save_game(updated_game)
+        await manager.broadcast({"type": "game_update"}, game_id)
 
         if updated_game.current_round and updated_game.current_round.overruled:
             return ActionResponse(success=True, message="Overrule succeeded - vote for new winner")
@@ -410,7 +417,7 @@ def cast_overrule_vote_endpoint(game_id: str, player_id: str, request: OverruleV
     response_model=ActionResponse,
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
 )
-def cast_winner_vote_endpoint(game_id: str, player_id: str, request: WinnerVoteRequest) -> ActionResponse:
+async def cast_winner_vote_endpoint(game_id: str, player_id: str, request: WinnerVoteRequest) -> ActionResponse:
     """Cast a vote for the new winner after successful overrule."""
     game = get_game(game_id)
     if not game:
@@ -422,6 +429,7 @@ def cast_winner_vote_endpoint(game_id: str, player_id: str, request: WinnerVoteR
     try:
         updated_game = cast_winner_vote(game, player_id, request.winner_player_id)
         save_game(updated_game)
+        await manager.broadcast({"type": "game_update"}, game_id)
 
         if updated_game.current_round and updated_game.current_round.winner_id is not None:
             winner = updated_game.players[updated_game.current_round.winner_id]
@@ -433,3 +441,20 @@ def cast_winner_vote_endpoint(game_id: str, player_id: str, request: WinnerVoteR
             status_code=400,
             detail={"error": str(e), "code": "CANNOT_VOTE"},
         ) from e
+
+
+@router.websocket("/ws/game/{game_id}")
+async def game_websocket(websocket: WebSocket, game_id: str, player_id: str):
+    """WebSocket endpoint for real-time game updates."""
+    game = get_game(game_id)
+    if not game or player_id not in game.players:
+        await websocket.close(code=4004)
+        return
+
+    await manager.connect(game_id, player_id, websocket)
+    try:
+        while True:
+            # Keep connection alive, listen for any client messages
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(game_id, player_id)

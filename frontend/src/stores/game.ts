@@ -2,8 +2,10 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type { PlayerInfo, GamePhase, RoundInfo, GameConfig } from '@/types/game'
 import * as api from '@/api/game'
+import { GameWebSocket } from '@/services/websocket'
 
 export const useGameStore = defineStore('game', () => {
+  const ws = new GameWebSocket()
   const gameId = ref<string | null>(null)
   const playerId = ref<string | null>(null)
   const inviteCode = ref<string | null>(null)
@@ -39,6 +41,18 @@ export const useGameStore = defineStore('game', () => {
   const hasCastWinnerVote = computed(() => currentRound.value?.has_cast_winner_vote ?? false)
   const overruleVoteCount = computed(() => Object.keys(currentRound.value?.overrule_votes ?? {}).length)
   const winnerVoteCount = computed(() => Object.keys(currentRound.value?.winner_votes ?? {}).length)
+  function connectWebSocket() {
+    if (!gameId.value || !playerId.value) return
+
+    ws.onMessage(async (data) => {
+      const message = data as { type: string }
+      if (message.type === 'game_update') {
+        await refreshGameState()
+      }
+    })
+
+    ws.connect(gameId.value, playerId.value)
+  }
 
   async function createGame(nickname: string) {
     isLoading.value = true
@@ -62,6 +76,7 @@ export const useGameStore = defineStore('game', () => {
       myTiles.value = response.player.word_tiles
       // Fetch full game state to populate config
       await refreshGameState()
+      connectWebSocket()
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Unknown error'
       throw e
@@ -80,6 +95,7 @@ export const useGameStore = defineStore('game', () => {
       playerId.value = response.player_id
       inviteCode.value = code.toUpperCase()
       await refreshGameState()
+      connectWebSocket()
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Unknown error'
       throw e
@@ -207,6 +223,7 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function leaveGame() {
+    ws.disconnect()
     gameId.value = null
     playerId.value = null
     inviteCode.value = null

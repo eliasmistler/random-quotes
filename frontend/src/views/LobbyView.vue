@@ -1,27 +1,15 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
 
 const router = useRouter()
 const gameStore = useGameStore()
 
-const pollingInterval = ref<number | null>(null)
-
 onMounted(() => {
   if (!gameStore.isInGame) {
     router.push('/')
     return
-  }
-
-  pollingInterval.value = window.setInterval(() => {
-    gameStore.refreshGameState()
-  }, 2000)
-})
-
-onUnmounted(() => {
-  if (pollingInterval.value) {
-    clearInterval(pollingInterval.value)
   }
 })
 

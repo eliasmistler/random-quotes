@@ -6,7 +6,6 @@ import { useGameStore } from '@/stores/game'
 const router = useRouter()
 const gameStore = useGameStore()
 
-const pollingInterval = ref<number | null>(null)
 const timerInterval = ref<number | null>(null)
 const selectedTiles = ref<string[]>([])
 const remainingSeconds = ref<number | null>(null)
@@ -83,10 +82,6 @@ onMounted(() => {
     return
   }
 
-  pollingInterval.value = window.setInterval(() => {
-    gameStore.refreshGameState()
-  }, 2000)
-
   // Start timer if already in submission phase
   if (gameStore.phase === 'round_submission') {
     updateTimer()
@@ -95,9 +90,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (pollingInterval.value) {
-    clearInterval(pollingInterval.value)
-  }
   if (timerInterval.value) {
     clearInterval(timerInterval.value)
   }
@@ -297,7 +289,10 @@ function getPlayerNickname(playerId: string): string {
     <div v-else-if="gameStore.phase === 'round_results'" class="phase-content">
       <div class="results-area">
         <!-- Overrule Voting Section (when judge picked self and not yet resolved) -->
-        <div v-if="gameStore.judgePickedSelf && !gameStore.isOverruled && gameStore.roundWinner" class="overrule-section">
+        <div
+          v-if="gameStore.judgePickedSelf && !gameStore.isOverruled && gameStore.roundWinner"
+          class="overrule-section"
+        >
           <h2>Judge picked their own answer!</h2>
           <div class="winner-card self-pick">
             <p class="winner-name">{{ gameStore.roundWinner.nickname }} (Judge)</p>
@@ -345,7 +340,9 @@ function getPlayerNickname(playerId: string): string {
             <div class="vote-progress-bar">
               <div
                 class="vote-progress-fill for"
-                :style="{ width: `${(overruleVoteProgress.votesFor / overruleVoteProgress.totalVoters) * 100}%` }"
+                :style="{
+                  width: `${(overruleVoteProgress.votesFor / overruleVoteProgress.totalVoters) * 100}%`,
+                }"
               ></div>
               <div
                 class="vote-progress-fill against"
@@ -358,14 +355,22 @@ function getPlayerNickname(playerId: string): string {
             <div class="vote-progress-labels">
               <span class="for-label">{{ overruleVoteProgress.votesFor }} for overrule</span>
               <span class="against-label">{{ overruleVoteProgress.votesAgainst }} against</span>
-              <span class="pending-label">{{ overruleVoteProgress.totalVoters - overruleVoteProgress.totalVoted }} pending</span>
+              <span class="pending-label"
+                >{{
+                  overruleVoteProgress.totalVoters - overruleVoteProgress.totalVoted
+                }}
+                pending</span
+              >
             </div>
             <p class="vote-progress-note">Requires unanimous vote to overrule</p>
           </div>
         </div>
 
         <!-- Winner Voting Section (after successful overrule) -->
-        <div v-else-if="gameStore.isOverruled && !gameStore.roundWinner" class="winner-voting-section">
+        <div
+          v-else-if="gameStore.isOverruled && !gameStore.roundWinner"
+          class="winner-voting-section"
+        >
           <h2>Overruled! Vote for a new winner</h2>
           <div class="prompt-reminder">
             <p>Prompt: {{ gameStore.currentRound?.prompt.text }}</p>
@@ -375,20 +380,28 @@ function getPlayerNickname(playerId: string): string {
             <p class="vote-prompt">Choose the best answer:</p>
             <div class="submissions-list">
               <button
-                v-for="submission in gameStore.currentRound?.submissions.filter(s => s.player_id !== gameStore.currentRound?.judge_id)"
+                v-for="submission in gameStore.currentRound?.submissions.filter(
+                  (s) => s.player_id !== gameStore.currentRound?.judge_id,
+                )"
                 :key="submission.player_id"
                 class="submission-card vote-option"
                 @click="handleWinnerVote(submission.player_id)"
                 :disabled="gameStore.isLoading"
               >
                 <span class="submission-text">{{ submission.response_text }}</span>
-                <span class="submission-author">- {{ getPlayerNickname(submission.player_id) }}</span>
+                <span class="submission-author"
+                  >- {{ getPlayerNickname(submission.player_id) }}</span
+                >
               </button>
             </div>
           </div>
 
           <div v-else-if="gameStore.hasCastWinnerVote" class="waiting-message">
-            <p>You voted. Waiting for others... ({{ gameStore.winnerVoteCount }}/{{ gameStore.players.length - 1 }})</p>
+            <p>
+              You voted. Waiting for others... ({{ gameStore.winnerVoteCount }}/{{
+                gameStore.players.length - 1
+              }})
+            </p>
           </div>
 
           <div v-else-if="gameStore.isJudge" class="waiting-message">
@@ -420,12 +433,18 @@ function getPlayerNickname(playerId: string): string {
             class="submission-result"
             :class="{
               winner: submission.player_id === gameStore.currentRound?.winner_id,
-              'judge-self-pick': gameStore.judgePickedSelf && submission.player_id === gameStore.currentRound?.judge_id
+              'judge-self-pick':
+                gameStore.judgePickedSelf &&
+                submission.player_id === gameStore.currentRound?.judge_id,
             }"
           >
             <span class="player-name">{{ getPlayerNickname(submission.player_id) }}:</span>
             <span class="answer">{{ submission.response_text }}</span>
-            <span v-if="submission.player_id === gameStore.currentRound?.judge_id" class="judge-badge">(Judge)</span>
+            <span
+              v-if="submission.player_id === gameStore.currentRound?.judge_id"
+              class="judge-badge"
+              >(Judge)</span
+            >
           </div>
         </div>
 
@@ -437,7 +456,9 @@ function getPlayerNickname(playerId: string): string {
         >
           {{ gameStore.isLoading ? 'Loading...' : 'Next Round' }}
         </button>
-        <p v-else-if="!gameStore.roundWinner" class="waiting-text">Waiting for voting to complete...</p>
+        <p v-else-if="!gameStore.roundWinner" class="waiting-text">
+          Waiting for voting to complete...
+        </p>
         <p v-else class="waiting-text">Waiting for host to start next round...</p>
       </div>
     </div>
@@ -453,7 +474,9 @@ function getPlayerNickname(playerId: string): string {
             class="final-score"
             :class="{ winner: player.score >= (gameStore.config?.points_to_win ?? 5) }"
           >
-            <span class="rank">{{ player.score >= (gameStore.config?.points_to_win ?? 5) ? 'Winner!' : '' }}</span>
+            <span class="rank">{{
+              player.score >= (gameStore.config?.points_to_win ?? 5) ? 'Winner!' : ''
+            }}</span>
             <span class="name">{{ player.nickname }}</span>
             <span class="score">{{ player.score }} points</span>
           </div>

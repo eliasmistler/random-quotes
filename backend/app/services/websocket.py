@@ -6,9 +6,12 @@ This module demonstrates key WebSocket concepts:
 3. Handling disconnections gracefully
 """
 
+import logging
 from typing import Any
 
 from fastapi import WebSocket
+
+log = logging.getLogger(__name__)
 
 
 class ConnectionManager:
@@ -93,13 +96,14 @@ class ConnectionManager:
         """
         if game_id in self.active_connections:
             # Loop through all players in the game
-            for websocket in self.active_connections[game_id].values():
+            for player_id, websocket in self.active_connections[game_id].items():
                 try:
                     await websocket.send_json(message)
                 except Exception as e:
                     # If sending fails, the connection is probably dead
                     # In production, you'd want to remove it from active_connections
-                    print(f"Error broadcasting to connection: {e}")
+                    log.error(f"Error broadcasting to connection: {e}")
+                    self.disconnect(game_id, player_id)
 
     async def broadcast_except(self, message: dict[str, Any], game_id: str, exclude_player_id: str) -> None:
         """Send a message to all players EXCEPT one.
