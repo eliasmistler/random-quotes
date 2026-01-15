@@ -2,9 +2,11 @@
 import { onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
+import { useClipboard } from '@/composables/useClipboard'
 
 const router = useRouter()
 const gameStore = useGameStore()
+const { copied, copyToClipboard } = useClipboard()
 
 onMounted(() => {
   if (!gameStore.isInGame) {
@@ -24,7 +26,7 @@ watch(
 
 function copyInviteCode() {
   if (gameStore.inviteCode) {
-    navigator.clipboard.writeText(gameStore.inviteCode)
+    copyToClipboard(gameStore.inviteCode)
   }
 }
 
@@ -57,7 +59,9 @@ const canStartGame = () => {
       <h2>Invite Code</h2>
       <div class="invite-code">
         <span class="code">{{ gameStore.inviteCode }}</span>
-        <button @click="copyInviteCode" class="copy-btn">Copy</button>
+        <button @click="copyInviteCode" class="copy-btn" :class="{ copied }">
+          {{ copied ? 'Copied!' : 'Copy' }}
+        </button>
       </div>
       <p class="invite-hint">Share this code with friends to join the game</p>
     </div>
@@ -148,6 +152,11 @@ h1 {
 
 .copy-btn:hover {
   opacity: 0.9;
+}
+
+.copy-btn.copied {
+  background: #4caf50;
+  color: white;
 }
 
 .invite-hint {
