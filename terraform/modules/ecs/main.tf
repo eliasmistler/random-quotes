@@ -119,6 +119,10 @@ resource "aws_lb" "main" {
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = var.public_subnet_ids
+
+  # Increase idle timeout to support WebSocket connections (default is 60s)
+  # Set to 1 hour to allow long-running game sessions
+  idle_timeout = 3600
 }
 
 # ALB Target Group - Backend

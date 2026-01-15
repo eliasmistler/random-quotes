@@ -131,6 +131,26 @@ class ConnectionManager:
             return list(self.active_connections[game_id].keys())
         return []
 
+    async def send_heartbeat(self) -> None:
+        """Send a heartbeat ping to all connected clients.
+
+        This keeps WebSocket connections alive through load balancers
+        and proxies that may close idle connections.
+        """
+        # Create a snapshot of connections to iterate over
+        # (avoids issues if connections change during iteration)
+        connections_snapshot: list[tuple[str, str, WebSocket]] = []
+        for game_id, players in list(self.active_connections.items()):
+            for player_id, websocket in list(players.items()):
+                connections_snapshot.append((game_id, player_id, websocket))
+
+        for game_id, player_id, websocket in connections_snapshot:
+            try:
+                await websocket.send_json({"type": "ping"})
+            except Exception as e:
+                log.warning(f"Heartbeat failed for {game_id}/{player_id}: {e}")
+                self.disconnect(game_id, player_id)
+
 
 # Singleton instance - one manager for the whole application
 # This ensures all endpoints share the same connection tracking
