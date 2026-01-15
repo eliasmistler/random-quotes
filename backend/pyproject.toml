@@ -10,6 +10,7 @@ dependencies = [
     "pyyaml>=6.0",
     "toolz",
     "uvicorn>=0.40.0",
+    "websockets>=15.0",
 ]
 
 [dependency-groups]
