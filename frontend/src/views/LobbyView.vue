@@ -3,6 +3,7 @@ import { onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
 import { useClipboard } from '@/composables/useClipboard'
+import ChatWindow from '@/components/ChatWindow.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -114,6 +115,9 @@ const canStartGame = () => {
       <p v-else class="waiting-text">Waiting for host to start...</p>
       <button @click="leaveGame" class="leave-btn">Leave Game</button>
     </div>
+
+    <!-- Chat Window -->
+    <ChatWindow />
   </main>
 </template>
 
@@ -122,6 +126,7 @@ const canStartGame = () => {
   max-width: 640px;
   margin: 0 auto;
   padding: 2rem 1rem;
+  padding-bottom: 120px; /* Space for chat window */
   animation: fadeInUp 0.4s var(--animation-smooth);
 }
 

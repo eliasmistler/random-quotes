@@ -1,5 +1,6 @@
 import type {
   ActionResponse,
+  ChatHistoryResponse,
   GameCreatedResponse,
   GameJoinedResponse,
   GameStateResponse,
@@ -181,6 +182,60 @@ export async function castWinnerVote(
 
   if (!response.ok) {
     const message = await extractErrorMessage(response, 'Failed to cast winner vote')
+    throw new Error(message)
+  }
+
+  return response.json()
+}
+
+export async function restartGame(gameId: string, playerId: string): Promise<ActionResponse> {
+  const response = await fetch(`${API_BASE}/games/${gameId}/restart?player_id=${playerId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    const message = await extractErrorMessage(response, 'Failed to restart game')
+    throw new Error(message)
+  }
+
+  return response.json()
+}
+
+export async function sendChatMessage(
+  gameId: string,
+  playerId: string,
+  text: string,
+): Promise<ActionResponse> {
+  const response = await fetch(`${API_BASE}/games/${gameId}/chat?player_id=${playerId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ text }),
+  })
+
+  if (!response.ok) {
+    const message = await extractErrorMessage(response, 'Failed to send message')
+    throw new Error(message)
+  }
+
+  return response.json()
+}
+
+export async function getChatHistory(
+  gameId: string,
+  playerId: string,
+  limit: number = 100,
+): Promise<ChatHistoryResponse> {
+  const response = await fetch(
+    `${API_BASE}/games/${gameId}/chat?player_id=${playerId}&limit=${limit}`,
+  )
+
+  if (!response.ok) {
+    const message = await extractErrorMessage(response, 'Failed to get chat history')
     throw new Error(message)
   }
 

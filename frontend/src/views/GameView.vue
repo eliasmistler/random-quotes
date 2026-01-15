@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
+import ChatWindow from '@/components/ChatWindow.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -9,6 +10,9 @@ const gameStore = useGameStore()
 const timerInterval = ref<number | null>(null)
 const selectedTiles = ref<string[]>([])
 const remainingSeconds = ref<number | null>(null)
+const draggedTile = ref<string | null>(null)
+const dragSource = ref<'pool' | 'answer' | null>(null)
+const dropTargetIndex = ref<number | null>(null)
 
 // Computed properties for timer display
 const timerDisplay = computed(() => {
@@ -42,6 +46,13 @@ const overruleVoteProgress = computed(() => {
     totalVoted: Object.keys(votes).length,
     totalVoters,
   }
+})
+
+// Check if current player won the game
+const isCurrentPlayerWinner = computed(() => {
+  const pointsToWin = gameStore.config?.points_to_win ?? 5
+  const currentPlayer = gameStore.players.find((p) => p.id === gameStore.playerId)
+  return currentPlayer ? currentPlayer.score >= pointsToWin : false
 })
 
 function updateTimer() {
@@ -104,6 +115,98 @@ function toggleTile(tile: string) {
   }
 }
 
+// Drag and Drop handlers
+function handleDragStart(e: DragEvent, tile: string, source: 'pool' | 'answer') {
+  draggedTile.value = tile
+  dragSource.value = source
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', tile)
+  }
+}
+
+function handleDragEnd() {
+  draggedTile.value = null
+  dragSource.value = null
+  dropTargetIndex.value = null
+}
+
+function handleDragOver(e: DragEvent, targetIndex?: number) {
+  e.preventDefault()
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'move'
+  }
+  if (targetIndex !== undefined) {
+    dropTargetIndex.value = targetIndex
+  }
+}
+
+function handleDragLeave() {
+  dropTargetIndex.value = null
+}
+
+function handleDropOnAnswer(e: DragEvent, targetIndex?: number) {
+  e.preventDefault()
+  if (!draggedTile.value) return
+
+  const tile = draggedTile.value
+
+  if (dragSource.value === 'pool') {
+    // Moving from pool to answer area
+    const currentIndex = selectedTiles.value.indexOf(tile)
+    if (currentIndex === -1) {
+      // Add tile to answer area at specific position
+      if (targetIndex !== undefined && targetIndex < selectedTiles.value.length) {
+        selectedTiles.value.splice(targetIndex, 0, tile)
+      } else {
+        selectedTiles.value.push(tile)
+      }
+    }
+  } else if (dragSource.value === 'answer') {
+    // Reordering within answer area
+    const currentIndex = selectedTiles.value.indexOf(tile)
+    if (currentIndex !== -1 && targetIndex !== undefined) {
+      selectedTiles.value.splice(currentIndex, 1)
+      // Adjust target index if we removed an item before it
+      const adjustedIndex = currentIndex < targetIndex ? targetIndex - 1 : targetIndex
+      selectedTiles.value.splice(adjustedIndex, 0, tile)
+    }
+  }
+
+  handleDragEnd()
+}
+
+function handleDropOnPool(e: DragEvent) {
+  e.preventDefault()
+  if (!draggedTile.value || dragSource.value !== 'answer') return
+
+  // Remove tile from answer area (return to pool)
+  const index = selectedTiles.value.indexOf(draggedTile.value)
+  if (index !== -1) {
+    selectedTiles.value.splice(index, 1)
+  }
+
+  handleDragEnd()
+}
+
+function removeTileFromAnswer(tile: string) {
+  const index = selectedTiles.value.indexOf(tile)
+  if (index !== -1) {
+    selectedTiles.value.splice(index, 1)
+  }
+}
+
+// Get a stable index for a tile based on its content (for consistent styling)
+function getTileStyleIndex(tile: string): number {
+  // Use a hash of the tile content for consistent styling
+  let hash = 0
+  for (let i = 0; i < tile.length; i++) {
+    hash = ((hash << 5) - hash) + tile.charCodeAt(i)
+    hash = hash & hash
+  }
+  return Math.abs(hash) % 14 + 1 // 1-14 for nth-child patterns
+}
+
 async function handleSubmit() {
   if (selectedTiles.value.length === 0) return
 
@@ -150,6 +253,14 @@ async function handleWinnerVote(playerId: string) {
 function leaveGame() {
   gameStore.leaveGame()
   router.push('/')
+}
+
+async function handlePlayAgain() {
+  try {
+    await gameStore.restartGame()
+  } catch (e) {
+    console.error('Failed to restart game:', e)
+  }
 }
 
 function getPlayerNickname(playerId: string): string {
@@ -223,12 +334,37 @@ function getPlayerNickname(playerId: string): string {
           <!-- Controls panel -->
           <div class="submission-controls">
             <p class="instruction">Build your answer:</p>
+            <p class="instruction-hint">Drag tiles to the answer area or click to add</p>
 
-            <div class="selected-preview">
+            <div
+              class="answer-dropzone"
+              :class="{ 'drag-over': draggedTile && dragSource === 'pool' }"
+              @dragover="handleDragOver($event)"
+              @dragleave="handleDragLeave"
+              @drop="handleDropOnAnswer($event)"
+            >
               <span v-if="selectedTiles.length === 0" class="placeholder">
-                Click tiles to build your answer
+                Drop tiles here or click them below
               </span>
-              <span v-else class="preview-text">{{ selectedTiles.join(' ') }}</span>
+              <div v-else class="answer-tiles">
+                <div
+                  v-for="(tile, index) in selectedTiles"
+                  :key="'answer-' + index"
+                  class="answer-tile-wrapper"
+                  :class="{ 'drop-target': dropTargetIndex === index }"
+                  @dragover="handleDragOver($event, index)"
+                  @drop="handleDropOnAnswer($event, index)"
+                >
+                  <span
+                    class="tile answer-tile"
+                    :class="'tile-style-' + getTileStyleIndex(tile, index)"
+                    draggable="true"
+                    @dragstart="handleDragStart($event, tile, 'answer')"
+                    @dragend="handleDragEnd"
+                    @click="removeTileFromAnswer(tile)"
+                  >{{ tile }}</span>
+                </div>
+              </div>
             </div>
 
             <button
@@ -241,14 +377,24 @@ function getPlayerNickname(playerId: string): string {
           </div>
 
           <!-- Tiles grid -->
-          <div class="tiles-section">
+          <div
+            class="tiles-section"
+            @dragover="handleDragOver($event)"
+            @drop="handleDropOnPool($event)"
+          >
             <div class="tiles-grid">
               <button
                 v-for="(tile, index) in gameStore.myTiles"
                 :key="index"
                 class="tile"
-                :class="{ selected: selectedTiles.includes(tile) }"
+                :class="{
+                  selected: selectedTiles.includes(tile),
+                  dragging: draggedTile === tile
+                }"
+                :draggable="!selectedTiles.includes(tile)"
                 @click="toggleTile(tile)"
+                @dragstart="handleDragStart($event, tile, 'pool')"
+                @dragend="handleDragEnd"
               >
                 {{ tile }}
               </button>
@@ -272,11 +418,18 @@ function getPlayerNickname(playerId: string): string {
           <button
             v-for="submission in gameStore.currentRound?.submissions"
             :key="submission.player_id"
-            class="submission-card"
+            class="submission-card submission-with-tiles"
             @click="handleSelectWinner(submission.player_id)"
             :disabled="gameStore.isLoading"
           >
-            {{ submission.response_text }}
+            <div class="submission-tiles">
+              <span
+                v-for="(tile, tileIndex) in submission.tiles_used"
+                :key="tileIndex"
+                class="tile display-tile"
+                :class="'tile-style-' + getTileStyleIndex(tile, tileIndex)"
+              >{{ tile }}</span>
+            </div>
           </button>
         </div>
       </div>
@@ -288,9 +441,16 @@ function getPlayerNickname(playerId: string): string {
           <div
             v-for="submission in gameStore.currentRound?.submissions"
             :key="submission.player_id"
-            class="submission-card readonly"
+            class="submission-card submission-with-tiles readonly"
           >
-            {{ submission.response_text }}
+            <div class="submission-tiles">
+              <span
+                v-for="(tile, tileIndex) in submission.tiles_used"
+                :key="tileIndex"
+                class="tile display-tile"
+                :class="'tile-style-' + getTileStyleIndex(tile, tileIndex)"
+              >{{ tile }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -307,13 +467,16 @@ function getPlayerNickname(playerId: string): string {
           <h2>Judge picked their own answer!</h2>
           <div class="winner-card self-pick">
             <p class="winner-name">{{ gameStore.roundWinner.nickname }} (Judge)</p>
-            <p class="winner-answer">
-              {{
-                gameStore.currentRound?.submissions.find(
+            <div class="winner-answer-tiles">
+              <span
+                v-for="(tile, tileIndex) in gameStore.currentRound?.submissions.find(
                   (s) => s.player_id === gameStore.currentRound?.winner_id,
-                )?.response_text
-              }}
-            </p>
+                )?.tiles_used ?? []"
+                :key="tileIndex"
+                class="tile display-tile"
+                :class="'tile-style-' + getTileStyleIndex(tile, tileIndex)"
+              >{{ tile }}</span>
+            </div>
           </div>
 
           <div v-if="gameStore.canOverruleVote" class="voting-area">
@@ -389,11 +552,18 @@ function getPlayerNickname(playerId: string): string {
                   (s) => s.player_id !== gameStore.currentRound?.judge_id,
                 )"
                 :key="submission.player_id"
-                class="submission-card vote-option"
+                class="submission-card submission-with-tiles vote-option"
                 @click="handleWinnerVote(submission.player_id)"
                 :disabled="gameStore.isLoading"
               >
-                <span class="submission-text">{{ submission.response_text }}</span>
+                <div class="submission-tiles">
+                  <span
+                    v-for="(tile, tileIndex) in submission.tiles_used"
+                    :key="tileIndex"
+                    class="tile display-tile"
+                    :class="'tile-style-' + getTileStyleIndex(tile, tileIndex)"
+                  >{{ tile }}</span>
+                </div>
                 <span class="submission-author">- {{ getPlayerNickname(submission.player_id) }}</span>
               </button>
             </div>
@@ -414,17 +584,21 @@ function getPlayerNickname(playerId: string): string {
 
         <!-- Normal Winner Display -->
         <div v-else>
-          <h2>Winner!</h2>
-          <div class="winner-card" :class="{ 'was-overruled': gameStore.isOverruled }">
+          <h2 v-if="gameStore.currentRound?.winner_id === gameStore.playerId" class="you-win">You Win This Round!</h2>
+          <h2 v-else>Winner: {{ gameStore.roundWinner?.nickname }}</h2>
+          <div class="winner-card" :class="{ 'was-overruled': gameStore.isOverruled, 'is-you': gameStore.currentRound?.winner_id === gameStore.playerId }">
             <div class="tape-strip"></div>
-            <p class="winner-name">{{ gameStore.roundWinner?.nickname }}</p>
-            <p class="winner-answer">
-              {{
-                gameStore.currentRound?.submissions.find(
+            <p class="winner-name" v-if="gameStore.currentRound?.winner_id !== gameStore.playerId">{{ gameStore.roundWinner?.nickname }}</p>
+            <div class="winner-answer-tiles">
+              <span
+                v-for="(tile, tileIndex) in gameStore.currentRound?.submissions.find(
                   (s) => s.player_id === gameStore.currentRound?.winner_id,
-                )?.response_text
-              }}
-            </p>
+                )?.tiles_used ?? []"
+                :key="tileIndex"
+                class="tile display-tile"
+                :class="'tile-style-' + getTileStyleIndex(tile, tileIndex)"
+              >{{ tile }}</span>
+            </div>
             <p v-if="gameStore.isOverruled" class="overrule-note">Chosen by player vote</p>
           </div>
         </div>
@@ -444,7 +618,14 @@ function getPlayerNickname(playerId: string): string {
             }"
           >
             <span class="player-name">{{ getPlayerNickname(submission.player_id) }}:</span>
-            <span class="answer">{{ submission.response_text }}</span>
+            <div class="answer-tiles-inline">
+              <span
+                v-for="(tile, tileIndex) in submission.tiles_used"
+                :key="tileIndex"
+                class="tile display-tile small"
+                :class="'tile-style-' + getTileStyleIndex(tile, tileIndex)"
+              >{{ tile }}</span>
+            </div>
             <span
               v-if="submission.player_id === gameStore.currentRound?.judge_id"
               class="judge-badge"
@@ -470,25 +651,37 @@ function getPlayerNickname(playerId: string): string {
     <!-- Game Over -->
     <div v-else-if="gameStore.phase === 'game_over'" class="phase-content">
       <div class="game-over">
-        <h1>Game Over!</h1>
+        <h1 v-if="isCurrentPlayerWinner" class="you-win-final">You Win!</h1>
+        <h1 v-else class="you-lose-final">You Lose!</h1>
         <div class="final-scores">
           <div
             v-for="(player, index) in [...gameStore.players].sort((a, b) => b.score - a.score)"
             :key="player.id"
             class="final-score"
-            :class="{ winner: player.score >= (gameStore.config?.points_to_win ?? 5) }"
+            :class="{
+              winner: player.score >= (gameStore.config?.points_to_win ?? 5),
+              'is-you': player.id === gameStore.playerId
+            }"
             :style="{ animationDelay: `${index * 0.1}s` }"
           >
             <span class="rank">{{
-              player.score >= (gameStore.config?.points_to_win ?? 5) ? 'Winner!' : ''
+              player.score >= (gameStore.config?.points_to_win ?? 5) ? '🏆' : ''
             }}</span>
-            <span class="name">{{ player.nickname }}</span>
+            <span class="name">{{ player.nickname }}{{ player.id === gameStore.playerId ? ' (You)' : '' }}</span>
             <span class="score">{{ player.score }} pts</span>
           </div>
         </div>
-        <button class="leave-btn" @click="leaveGame">Back to Home</button>
+        <div class="game-over-actions">
+          <button v-if="gameStore.isHost" class="play-again-btn" @click="handlePlayAgain">
+            Play Again
+          </button>
+          <button class="leave-btn" @click="leaveGame">Back to Home</button>
+        </div>
       </div>
     </div>
+
+    <!-- Chat Window -->
+    <ChatWindow />
 
     <button class="leave-game-btn" @click="leaveGame">Leave Game</button>
   </main>
@@ -756,33 +949,79 @@ function getPlayerNickname(playerId: string): string {
   text-transform: uppercase;
   font-size: 0.9rem;
   letter-spacing: 0.05em;
+  margin-bottom: 0;
 }
 
-.selected-preview {
+.instruction-hint {
+  font-family: var(--font-typewriter);
+  font-size: 0.75rem;
+  color: var(--ink-grey);
+  margin-top: 0.25rem;
+}
+
+/* ==========================================================================
+   DRAG AND DROP ANSWER AREA
+   ========================================================================== */
+
+.answer-dropzone {
   background: var(--scrap-white);
-  padding: 1.25rem;
-  min-height: 70px;
+  padding: 1rem;
+  min-height: 100px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px dashed var(--ink-charcoal);
+  border: 3px dashed var(--ink-charcoal);
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.answer-dropzone.drag-over {
+  border-color: var(--accent-red);
+  background: var(--scrap-cream);
+}
+
+.answer-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+  width: 100%;
+}
+
+.answer-tile-wrapper {
+  position: relative;
+  transition: transform 0.15s;
+}
+
+.answer-tile-wrapper.drop-target::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent-red);
+  border-radius: 2px;
+}
+
+.answer-tile {
+  cursor: grab;
+}
+
+.answer-tile:active {
+  cursor: grabbing;
 }
 
 .placeholder {
   color: var(--ink-grey);
   font-style: italic;
   font-family: var(--font-typewriter);
+  text-align: center;
 }
 
-.preview-text {
-  font-family: var(--font-typewriter);
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--ink-black);
-  text-transform: lowercase;
-  line-height: 1.4;
-  text-align: center;
+/* Dragging state for tiles */
+.tile.dragging {
+  opacity: 0.5;
 }
 
 /* ==========================================================================
@@ -907,6 +1146,11 @@ function getPlayerNickname(playerId: string): string {
   margin-bottom: 1rem;
 }
 
+.results-area h2.you-win {
+  color: var(--color-success);
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+}
+
 .winner-card {
   background: var(--scrap-yellow);
   padding: 1.5rem;
@@ -915,6 +1159,10 @@ function getPlayerNickname(playerId: string): string {
   position: relative;
   box-shadow: var(--shadow-paper);
   transform: rotate(-1deg);
+}
+
+.winner-card.is-you {
+  background: var(--scrap-green);
 }
 
 @media (min-width: 640px) {
@@ -1175,6 +1423,13 @@ function getPlayerNickname(playerId: string): string {
   font-family: var(--font-display-2);
   font-size: clamp(2.5rem, 8vw, 4rem);
   margin-bottom: 2rem;
+}
+
+.you-win-final {
+  color: var(--color-success);
+}
+
+.you-lose-final {
   color: var(--accent-red);
 }
 
@@ -1200,6 +1455,39 @@ function getPlayerNickname(playerId: string): string {
 .final-score.winner {
   background: var(--scrap-yellow);
   transform: rotate(-1deg);
+}
+
+.final-score.is-you {
+  border-left: 4px solid var(--accent-red);
+}
+
+.game-over-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+}
+
+@media (min-width: 480px) {
+  .game-over-actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+}
+
+.play-again-btn {
+  padding: 1rem 2rem;
+  background: var(--color-success);
+  color: white;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-paper);
+}
+
+.play-again-btn:hover {
+  background: var(--color-success-hover);
+  transform: rotate(0.5deg) scale(1.02);
 }
 
 .final-score .name {
@@ -1287,6 +1575,136 @@ function getPlayerNickname(playerId: string): string {
     padding: 1rem;
     font-size: 0.9rem;
   }
+}
+
+/* ==========================================================================
+   DISPLAY TILES - Used for showing submissions
+   ========================================================================== */
+
+.display-tile {
+  cursor: default !important;
+  pointer-events: none;
+}
+
+.display-tile.small {
+  padding: 0.25rem 0.4rem;
+  font-size: 0.85rem;
+}
+
+.submission-with-tiles {
+  padding: 1rem;
+}
+
+.submission-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  justify-content: center;
+}
+
+.winner-answer-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.answer-tiles-inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+}
+
+/* ==========================================================================
+   TILE STYLE VARIATIONS - Applied via class based on content hash
+   ========================================================================== */
+
+.tile-style-1 {
+  font-family: var(--font-headline-1);
+  background-color: var(--scrap-cream);
+  transform: rotate(-2deg);
+}
+
+.tile-style-2 {
+  font-family: var(--font-headline-2);
+  background-color: var(--scrap-yellow);
+  transform: rotate(1.5deg);
+}
+
+.tile-style-3 {
+  font-family: var(--font-body-2);
+  background-color: var(--scrap-newsprint);
+  transform: rotate(-1deg);
+}
+
+.tile-style-4 {
+  font-family: var(--font-headline-3);
+  background-color: var(--scrap-pink);
+  transform: rotate(2deg);
+  font-style: italic;
+}
+
+.tile-style-5 {
+  font-family: var(--font-headline-4);
+  background-color: var(--scrap-blue);
+  transform: rotate(-1.5deg);
+}
+
+.tile-style-6 {
+  font-family: var(--font-headline-4);
+  background-color: var(--scrap-white);
+  transform: rotate(0.5deg);
+}
+
+.tile-style-7 {
+  font-family: var(--font-display-1);
+  background-color: var(--scrap-orange);
+  transform: rotate(-2.5deg);
+}
+
+.tile-style-8 {
+  font-family: var(--font-headline-1);
+  background-color: var(--scrap-green);
+  transform: rotate(1deg);
+}
+
+.tile-style-9 {
+  font-family: var(--font-headline-2);
+  background-color: var(--scrap-cream);
+  transform: rotate(-1.5deg);
+}
+
+.tile-style-10 {
+  font-family: var(--font-display-2);
+  background-color: var(--scrap-pink);
+  transform: rotate(2.5deg);
+}
+
+.tile-style-11 {
+  font-family: var(--font-headline-3);
+  background-color: var(--scrap-yellow);
+  transform: rotate(-0.5deg);
+  color: var(--accent-red);
+}
+
+.tile-style-12 {
+  font-family: var(--font-body-2);
+  background-color: var(--scrap-blue);
+  transform: rotate(1.5deg);
+}
+
+.tile-style-13 {
+  font-family: var(--font-blackletter);
+  background-color: var(--scrap-cream);
+  transform: rotate(-2deg);
+}
+
+.tile-style-14 {
+  font-family: var(--font-headline-6);
+  background-color: var(--scrap-newsprint);
+  transform: rotate(0.5deg);
 }
 
 /* ==========================================================================

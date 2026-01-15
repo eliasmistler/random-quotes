@@ -16,10 +16,16 @@
       "WebFetch",
       "WebSearch",
       "Bash(terraform *)",
-      "Bash(aws *)"
+      "Bash(aws *)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(./scripts/:*)"
     ]
   },
   "enabledPlugins": {
-    "frontend-design@claude-plugins-official": true
+    "frontend-design@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "github@claude-plugins-official": true,
+    "commit-commands@claude-plugins-official": true
   }
 }

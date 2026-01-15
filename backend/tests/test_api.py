@@ -110,6 +110,34 @@ class TestJoinGameEndpoint:
         assert response.status_code == 404
         assert response.json()["detail"]["code"] == "GAME_NOT_FOUND"
 
+    def test_join_game_duplicate_nickname_rejected(self, client: TestClient) -> None:
+        """Test that joining with a nickname already taken returns 400."""
+        create_resp = client.post("/api/games", json={"host_nickname": "Player1"})
+        invite_code = create_resp.json()["invite_code"]
+
+        # Try to join with the same nickname as the host
+        join_resp = client.post(
+            f"/api/games/join/{invite_code}",
+            json={"nickname": "Player1"},
+        )
+
+        assert join_resp.status_code == 400
+        assert "nickname is already taken" in join_resp.json()["detail"]["error"].lower()
+
+    def test_join_game_duplicate_nickname_case_insensitive(self, client: TestClient) -> None:
+        """Test that nickname uniqueness check is case-insensitive."""
+        create_resp = client.post("/api/games", json={"host_nickname": "TestPlayer"})
+        invite_code = create_resp.json()["invite_code"]
+
+        # Try to join with different casing
+        join_resp = client.post(
+            f"/api/games/join/{invite_code}",
+            json={"nickname": "TESTPLAYER"},
+        )
+
+        assert join_resp.status_code == 400
+        assert "nickname is already taken" in join_resp.json()["detail"]["error"].lower()
+
 
 class TestGetGameStateEndpoint:
     """Tests for the GET /games/{game_id} endpoint."""

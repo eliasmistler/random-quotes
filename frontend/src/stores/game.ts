@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { PlayerInfo, GamePhase, RoundInfo, GameConfig } from '@/types/game'
+import type { PlayerInfo, GamePhase, RoundInfo, GameConfig, ChatMessage } from '@/types/game'
 import * as api from '@/api/game'
 import { GameWebSocket } from '@/services/websocket'
 
@@ -16,6 +16,8 @@ export const useGameStore = defineStore('game', () => {
   const config = ref<GameConfig | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const chatMessages = ref<ChatMessage[]>([])
+  const unreadChatCount = ref(0)
 
   const isInGame = computed(() => gameId.value !== null)
   const currentPlayer = computed(() => players.value.find((p) => p.id === playerId.value))
@@ -45,9 +47,12 @@ export const useGameStore = defineStore('game', () => {
     if (!gameId.value || !playerId.value) return
 
     ws.onMessage(async (data) => {
-      const message = data as { type: string }
+      const message = data as { type: string; data?: ChatMessage }
       if (message.type === 'game_update') {
         await refreshGameState()
+      } else if (message.type === 'chat_message' && message.data) {
+        chatMessages.value.push(message.data)
+        unreadChatCount.value++
       }
     })
 
@@ -74,6 +79,8 @@ export const useGameStore = defineStore('game', () => {
         },
       ]
       myTiles.value = response.player.word_tiles
+      chatMessages.value = []
+      unreadChatCount.value = 0
       // Fetch full game state to populate config
       await refreshGameState()
       connectWebSocket()
@@ -95,6 +102,7 @@ export const useGameStore = defineStore('game', () => {
       playerId.value = response.player_id
       inviteCode.value = code.toUpperCase()
       await refreshGameState()
+      await loadChatHistory()
       connectWebSocket()
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Unknown error'
@@ -222,6 +230,50 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  async function loadChatHistory() {
+    if (!gameId.value || !playerId.value) return
+
+    try {
+      const response = await api.getChatHistory(gameId.value, playerId.value)
+      chatMessages.value = response.messages
+      unreadChatCount.value = 0
+    } catch (e) {
+      console.error('Failed to load chat history:', e)
+    }
+  }
+
+  async function sendChatMessage(text: string) {
+    if (!gameId.value || !playerId.value) return
+
+    try {
+      await api.sendChatMessage(gameId.value, playerId.value, text)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Unknown error'
+      throw e
+    }
+  }
+
+  function markChatAsRead() {
+    unreadChatCount.value = 0
+  }
+
+  async function restartGame() {
+    if (!gameId.value || !playerId.value) return
+
+    isLoading.value = true
+    error.value = null
+
+    try {
+      await api.restartGame(gameId.value, playerId.value)
+      await refreshGameState()
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Unknown error'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   function leaveGame() {
     ws.disconnect()
     gameId.value = null
@@ -233,6 +285,8 @@ export const useGameStore = defineStore('game', () => {
     currentRound.value = null
     config.value = null
     error.value = null
+    chatMessages.value = []
+    unreadChatCount.value = 0
   }
 
   return {
@@ -246,6 +300,8 @@ export const useGameStore = defineStore('game', () => {
     config,
     isLoading,
     error,
+    chatMessages,
+    unreadChatCount,
     isInGame,
     currentPlayer,
     isHost,
@@ -271,6 +327,10 @@ export const useGameStore = defineStore('game', () => {
     advanceRound,
     castOverruleVote,
     castWinnerVote,
+    restartGame,
     leaveGame,
+    loadChatHistory,
+    sendChatMessage,
+    markChatAsRead,
   }
 })

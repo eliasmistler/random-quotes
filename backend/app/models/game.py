@@ -44,6 +44,16 @@ class Submission(BaseModel):
     submitted_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
+class ChatMessage(BaseModel):
+    """A chat message in the game."""
+
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    player_id: str
+    nickname: str
+    text: str
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
 class Round(BaseModel):
     """Represents a single game round."""
 
@@ -85,3 +95,4 @@ class Game(BaseModel):
     word_pool: list[str] = Field(default_factory=list)
     prompts_pool: list[Prompt] = Field(default_factory=list)
     used_prompt_ids: list[str] = Field(default_factory=list)
+    chat_history: list[ChatMessage] = Field(default_factory=list)

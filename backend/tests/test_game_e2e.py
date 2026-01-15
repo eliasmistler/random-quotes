@@ -111,14 +111,21 @@ class TestGameE2E:
             )
             assert judge_response.status_code == 200
 
-            # Verify we're in results phase
+            # After selecting winner, verify we're in results phase or game_over (if game won)
             state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
-            assert state["phase"] == "round_results"
-            assert state["current_round"]["winner_id"] == winner_id
 
-            # Check if game should be over
+            # Check winner score to see if game should be over
             winner_score = next(p["score"] for p in state["players"] if p["id"] == winner_id)
             points_to_win = state["config"]["points_to_win"]
+
+            # Game skips directly to game_over when won (new behavior)
+            if winner_score >= points_to_win:
+                assert state["phase"] == "game_over"
+                break
+
+            # Otherwise we should be in results phase
+            assert state["phase"] == "round_results"
+            assert state["current_round"]["winner_id"] == winner_id
 
             # Host advances to next round
             advance_response = client.post(f"/api/games/{game_id}/advance?player_id={player1_id}")
@@ -126,11 +133,6 @@ class TestGameE2E:
 
             # Check final state
             state = client.get(f"/api/games/{game_id}?player_id={player1_id}").json()
-
-            if winner_score >= points_to_win:
-                assert state["phase"] == "game_over"
-                break
-
             assert state["phase"] == "round_submission"
 
         # Verify game ended properly

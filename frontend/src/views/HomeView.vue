@@ -39,15 +39,25 @@ async function handleJoinGame() {
   }
 }
 
-// Letter styles for the ransom note title effect
-const titleLetters = [
+// Letter styles for the ransom note title effect - split into two words
+interface RansomLetter {
+  char: string
+  font: string
+  bg: string
+  rotate: number
+  color?: string
+}
+
+const ransomLetters: RansomLetter[] = [
   { char: 'R', font: 'headline-1', bg: 'cream', rotate: -3 },
   { char: 'A', font: 'headline-2', bg: 'yellow', rotate: 2 },
   { char: 'N', font: 'display-1', bg: 'pink', rotate: -1 },
   { char: 'S', font: 'headline-3', bg: 'white', rotate: 1.5 },
   { char: 'O', font: 'headline-4', bg: 'blue', rotate: -2 },
   { char: 'M', font: 'body-2', bg: 'orange', rotate: 2.5 },
-  { char: ' ', font: '', bg: '', rotate: 0 },
+]
+
+const notesLetters: RansomLetter[] = [
   { char: 'N', font: 'headline-6', bg: 'newsprint', rotate: -1.5 },
   { char: 'O', font: 'display-2', bg: 'cream', rotate: 3, color: 'red' },
   { char: 'T', font: 'headline-2', bg: 'yellow', rotate: -2 },
@@ -60,20 +70,38 @@ const titleLetters = [
   <main class="home">
     <!-- Ransom Note Title - Each letter is a cutout -->
     <h1 class="ransom-title">
-      <span
-        v-for="(letter, index) in titleLetters"
-        :key="index"
-        class="letter"
-        :class="[
-          letter.font ? `font-${letter.font}` : '',
-          letter.bg ? `bg-${letter.bg}` : '',
-          letter.color ? `color-${letter.color}` : ''
-        ]"
-        :style="{
-          transform: `rotate(${letter.rotate}deg)`,
-          animationDelay: `${index * 0.05}s`
-        }"
-      >{{ letter.char }}</span>
+      <span class="word">
+        <span
+          v-for="(letter, index) in ransomLetters"
+          :key="'ransom-' + index"
+          class="letter"
+          :class="[
+            letter.font ? `font-${letter.font}` : '',
+            letter.bg ? `bg-${letter.bg}` : '',
+            letter.color ? `color-${letter.color}` : ''
+          ]"
+          :style="{
+            transform: `rotate(${letter.rotate}deg)`,
+            animationDelay: `${index * 0.05}s`
+          }"
+        >{{ letter.char }}</span>
+      </span>
+      <span class="word">
+        <span
+          v-for="(letter, index) in notesLetters"
+          :key="'notes-' + index"
+          class="letter"
+          :class="[
+            letter.font ? `font-${letter.font}` : '',
+            letter.bg ? `bg-${letter.bg}` : '',
+            letter.color ? `color-${letter.color}` : ''
+          ]"
+          :style="{
+            transform: `rotate(${letter.rotate}deg)`,
+            animationDelay: `${(index + ransomLetters.length) * 0.05}s`
+          }"
+        >{{ letter.char }}</span>
+      </span>
     </h1>
 
     <p class="subtitle">
@@ -199,11 +227,17 @@ const titleLetters = [
   z-index: 10;
 }
 
-/* Empty space character */
-.letter:nth-child(7) {
-  background: transparent !important;
-  box-shadow: none;
-  width: 0.5em;
+/* Word wrapper to prevent mid-word breaks */
+.word {
+  display: inline-flex;
+  gap: 0.15rem;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .word {
+    gap: 0.25rem;
+  }
 }
 
 /* Font classes */

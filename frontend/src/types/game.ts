@@ -39,6 +39,7 @@ export interface Prompt {
 export interface SubmissionInfo {
   player_id: string
   response_text: string
+  tiles_used: string[]
 }
 
 export interface RoundInfo {
@@ -90,4 +91,16 @@ export interface GameStateResponse {
 export interface ActionResponse {
   success: boolean
   message: string
+}
+
+export interface ChatMessage {
+  id: string
+  player_id: string
+  nickname: string
+  text: string
+  timestamp: string // ISO datetime string
+}
+
+export interface ChatHistoryResponse {
+  messages: ChatMessage[]
 }

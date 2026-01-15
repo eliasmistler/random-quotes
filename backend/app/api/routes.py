@@ -6,6 +6,9 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from app.models.api import (
     ActionResponse,
+    ChatHistoryResponse,
+    ChatMessageInfo,
+    ChatMessageRequest,
     CreateGameRequest,
     ErrorResponse,
     GameCreatedResponse,
@@ -22,7 +25,7 @@ from app.models.api import (
 )
 from app.models.common import HealthResponse
 from app.models.content import load_game_content
-from app.models.game import GamePhase
+from app.models.game import ChatMessage, GamePhase
 from app.services.game import (
     add_player_to_game,
     advance_round,
@@ -34,6 +37,7 @@ from app.services.game import (
     cast_winner_vote,
     create_game,
     get_non_judge_player_ids,
+    restart_game,
     select_winner,
     start_game,
     submit_response,
@@ -60,7 +64,7 @@ def _build_round_info(game, player_id: str) -> RoundInfo | None:
     submissions = []
     if show_submissions:
         submissions = [
-            SubmissionInfo(player_id=s.player_id, response_text=s.response_text)
+            SubmissionInfo(player_id=s.player_id, response_text=s.response_text, tiles_used=s.tiles_used)
             for s in game.current_round.submissions.values()
         ]
 
@@ -443,6 +447,45 @@ async def cast_winner_vote_endpoint(game_id: str, player_id: str, request: Winne
         ) from e
 
 
+@router.post(
+    "/games/{game_id}/restart",
+    response_model=ActionResponse,
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+async def restart_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
+    """Restart the game with the same players. Only the host can restart."""
+    game = get_game(game_id)
+    if not game:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Game not found", "code": "GAME_NOT_FOUND"},
+        )
+
+    player = game.players.get(player_id)
+    if not player:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Player not found in game", "code": "PLAYER_NOT_FOUND"},
+        )
+
+    if not player.is_host:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "Only the host can restart the game", "code": "NOT_HOST"},
+        )
+
+    try:
+        updated_game = restart_game(game)
+        save_game(updated_game)
+        await manager.broadcast({"type": "game_update"}, game_id)
+        return ActionResponse(success=True, message="Game restarted - back to lobby")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": str(e), "code": "CANNOT_RESTART"},
+        ) from e
+
+
 @router.websocket("/ws/game/{game_id}")
 async def game_websocket(websocket: WebSocket, game_id: str, player_id: str):
     """WebSocket endpoint for real-time game updates."""
@@ -458,3 +501,93 @@ async def game_websocket(websocket: WebSocket, game_id: str, player_id: str):
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(game_id, player_id)
+
+
+@router.post(
+    "/games/{game_id}/chat",
+    response_model=ActionResponse,
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+async def send_chat_message(game_id: str, player_id: str, request: ChatMessageRequest) -> ActionResponse:
+    """Send a chat message to the game."""
+    game = get_game(game_id)
+    if not game:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Game not found", "code": "GAME_NOT_FOUND"},
+        )
+
+    player = game.players.get(player_id)
+    if not player:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Player not found in game", "code": "PLAYER_NOT_FOUND"},
+        )
+
+    if not request.text.strip():
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "Message cannot be empty", "code": "EMPTY_MESSAGE"},
+        )
+
+    message = ChatMessage(
+        player_id=player_id,
+        nickname=player.nickname,
+        text=request.text.strip(),
+    )
+
+    updated_chat = [*game.chat_history, message]
+    updated_game = game.model_copy(update={"chat_history": updated_chat})
+    save_game(updated_game)
+
+    await manager.broadcast(
+        {
+            "type": "chat_message",
+            "data": {
+                "id": message.id,
+                "player_id": message.player_id,
+                "nickname": message.nickname,
+                "text": message.text,
+                "timestamp": message.timestamp.isoformat(),
+            },
+        },
+        game_id,
+    )
+
+    return ActionResponse(success=True, message="Message sent")
+
+
+@router.get(
+    "/games/{game_id}/chat",
+    response_model=ChatHistoryResponse,
+    responses={404: {"model": ErrorResponse}},
+)
+def get_chat_history(game_id: str, player_id: str, limit: int = 100) -> ChatHistoryResponse:
+    """Get the chat history for a game."""
+    game = get_game(game_id)
+    if not game:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Game not found", "code": "GAME_NOT_FOUND"},
+        )
+
+    if player_id not in game.players:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Player not found in game", "code": "PLAYER_NOT_FOUND"},
+        )
+
+    # Return most recent messages up to limit
+    messages = game.chat_history[-limit:] if limit > 0 else game.chat_history
+    return ChatHistoryResponse(
+        messages=[
+            ChatMessageInfo(
+                id=msg.id,
+                player_id=msg.player_id,
+                nickname=msg.nickname,
+                text=msg.text,
+                timestamp=msg.timestamp,
+            )
+            for msg in messages
+        ]
+    )

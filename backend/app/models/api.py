@@ -76,6 +76,7 @@ class SubmissionInfo(BaseModel):
 
     player_id: str
     response_text: str
+    tiles_used: list[str]
 
 
 class RoundInfo(BaseModel):
@@ -127,3 +128,25 @@ class ErrorResponse(BaseModel):
 
     error: str
     code: str
+
+
+class ChatMessageRequest(BaseModel):
+    """Request to send a chat message."""
+
+    text: str
+
+
+class ChatMessageInfo(BaseModel):
+    """Chat message information."""
+
+    id: str
+    player_id: str
+    nickname: str
+    text: str
+    timestamp: datetime
+
+
+class ChatHistoryResponse(BaseModel):
+    """Response containing chat history."""
+
+    messages: list[ChatMessageInfo]

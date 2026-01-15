@@ -36,17 +36,26 @@ def create_game(host_nickname: str, config: GameConfig | None = None) -> tuple[G
     return game, host
 
 
+def is_nickname_taken(game: Game, nickname: str) -> bool:
+    """Check if a nickname is already taken by a player in the game."""
+    normalized = nickname.strip().lower()
+    return any(p.nickname.strip().lower() == normalized for p in game.players.values())
+
+
 def add_player_to_game(game: Game, nickname: str) -> tuple[Game, Player]:
     """Add a player to a game.
 
     Returns a new game with the player added and the new player.
-    Raises ValueError if game is full or not in lobby phase.
+    Raises ValueError if game is full, not in lobby phase, or nickname is taken.
     """
     if game.phase != GamePhase.LOBBY:
         raise ValueError("Cannot join game: game is not in lobby phase")
 
     if len(game.players) >= game.config.max_players:
         raise ValueError("Cannot join game: game is full")
+
+    if is_nickname_taken(game, nickname):
+        raise ValueError("Cannot join game: nickname is already taken")
 
     new_player = create_player(nickname=nickname, is_host=False)
     updated_players = {**game.players, new_player.id: new_player}
@@ -229,6 +238,7 @@ def select_winner(game: Game, winner_id: str) -> Game:
 
     Raises ValueError if not in judging phase or winner didn't submit.
     Tracks if the judge picked themselves (for potential overrule).
+    Skips directly to game over if the game is won (unless overrule voting is possible).
     """
     if game.phase != GamePhase.ROUND_JUDGING:
         raise ValueError("Not in judging phase")
@@ -252,11 +262,29 @@ def select_winner(game: Game, winner_id: str) -> Game:
     updated_winner = winner.model_copy(update={"score": winner.score + 1})
     updated_players = {**game.players, winner_id: updated_winner}
 
-    return game.model_copy(
+    # Create the updated game to check game over condition
+    game_with_winner = game.model_copy(
         update={
-            "phase": GamePhase.ROUND_RESULTS,
             "current_round": updated_round,
             "players": updated_players,
+        }
+    )
+
+    # Check if overrule voting is possible (judge picked themselves with 3+ players)
+    overrule_possible = judge_picked_self and len(game.players) >= 3
+
+    # If game is over and no overrule voting is possible, skip directly to game over
+    if check_game_over(game_with_winner) and not overrule_possible:
+        return game_with_winner.model_copy(
+            update={
+                "phase": GamePhase.GAME_OVER,
+                "round_history": [*game.round_history, updated_round],
+            }
+        )
+
+    return game_with_winner.model_copy(
+        update={
+            "phase": GamePhase.ROUND_RESULTS,
         }
     )
 
@@ -272,6 +300,31 @@ def get_winner(game: Game) -> Player | None:
         if player.score >= game.config.points_to_win:
             return player
     return None
+
+
+def restart_game(game: Game) -> Game:
+    """Restart the game with the same players.
+
+    Resets all scores to 0, clears round history, and returns to lobby.
+    Can only be called when game is over.
+    """
+    if game.phase != GamePhase.GAME_OVER:
+        raise ValueError("Can only restart a finished game")
+
+    # Reset all player scores to 0 and clear their tiles
+    updated_players = {
+        player_id: player.model_copy(update={"score": 0, "word_tiles": []})
+        for player_id, player in game.players.items()
+    }
+
+    return game.model_copy(
+        update={
+            "phase": GamePhase.LOBBY,
+            "players": updated_players,
+            "current_round": None,
+            "round_history": [],
+        }
+    )
 
 
 def advance_round(game: Game, content: GameContentConfig) -> Game:
