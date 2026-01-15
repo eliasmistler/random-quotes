@@ -251,8 +251,10 @@ async function pickWinner(judge: Player): Promise<void> {
   // Click the first submission card (in 2-player game, there's only one)
   await submissionCards.first().click();
 
-  // Wait for results phase
-  await expect(judge.page.locator('.results-area')).toBeVisible({ timeout: 10000 });
+  // Wait for results phase OR game over (game skips results when ending)
+  await expect(
+    judge.page.locator('.results-area, .game-over').first()
+  ).toBeVisible({ timeout: 10000 });
   console.log('Winner selected');
 }
 
@@ -260,6 +262,13 @@ async function pickWinner(judge: Player): Promise<void> {
  * Host advances to the next round
  */
 async function advanceRound(host: Player): Promise<void> {
+  // Check if game is already over (no advance button when game ends)
+  const gameOver = await host.page.locator('.game-over').isVisible().catch(() => false);
+  if (gameOver) {
+    console.log('Game over - no advance needed');
+    return;
+  }
+
   // Look for the advance/next round button
   const advanceButton = host.page.locator('button:has-text("Next Round"), button:has-text("Advance"), button.advance-btn');
 
