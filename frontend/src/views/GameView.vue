@@ -8,11 +8,20 @@ const router = useRouter()
 const gameStore = useGameStore()
 
 const timerInterval = ref<number | null>(null)
-const selectedTiles = ref<string[]>([])
 const remainingSeconds = ref<number | null>(null)
+
+// Multi-row answer box (up to 5 rows)
+const MAX_ROWS = 5
+const answerRows = ref<string[][]>([[], [], [], [], []])
 const draggedTile = ref<string | null>(null)
-const dragSource = ref<'pool' | 'answer' | null>(null)
-const dropTargetIndex = ref<number | null>(null)
+const dragSource = ref<{ type: 'pool' | 'answer'; row?: number; index?: number } | null>(null)
+const dropTargetRow = ref<number | null>(null)
+
+// Computed: all selected tiles flattened (for submission)
+const selectedTiles = computed(() => answerRows.value.flat())
+
+// Computed: which tiles are in the answer box
+const tilesInAnswer = computed(() => new Set(selectedTiles.value))
 
 // Computed properties for timer display
 const timerDisplay = computed(() => {
@@ -106,19 +115,36 @@ onUnmounted(() => {
   }
 })
 
+// Click to toggle tile (fallback for non-drag interaction)
 function toggleTile(tile: string) {
-  const index = selectedTiles.value.indexOf(tile)
-  if (index === -1) {
-    selectedTiles.value.push(tile)
-  } else {
-    selectedTiles.value.splice(index, 1)
+  // If tile is in answer box, remove it
+  for (let i = 0; i < MAX_ROWS; i++) {
+    const row = answerRows.value[i]
+    if (!row) continue
+    const idx = row.indexOf(tile)
+    if (idx !== -1) {
+      row.splice(idx, 1)
+      return
+    }
+  }
+  // Otherwise add it to first row with space
+  answerRows.value[0]?.push(tile)
+}
+
+// Drag start from the tiles pool
+function handleDragStart(e: DragEvent, tile: string) {
+  draggedTile.value = tile
+  dragSource.value = { type: 'pool' }
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', tile)
   }
 }
 
-// Drag and Drop handlers
-function handleDragStart(e: DragEvent, tile: string, source: 'pool' | 'answer') {
+// Drag start from within the answer box
+function handleAnswerDragStart(e: DragEvent, tile: string, rowIndex: number, tileIndex: number) {
   draggedTile.value = tile
-  dragSource.value = source
+  dragSource.value = { type: 'answer', row: rowIndex, index: tileIndex }
   if (e.dataTransfer) {
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', tile)
@@ -128,72 +154,59 @@ function handleDragStart(e: DragEvent, tile: string, source: 'pool' | 'answer') 
 function handleDragEnd() {
   draggedTile.value = null
   dragSource.value = null
-  dropTargetIndex.value = null
+  dropTargetRow.value = null
 }
 
-function handleDragOver(e: DragEvent, targetIndex?: number) {
+function handleDragOver(e: DragEvent, rowIndex: number) {
   e.preventDefault()
   if (e.dataTransfer) {
     e.dataTransfer.dropEffect = 'move'
   }
-  if (targetIndex !== undefined) {
-    dropTargetIndex.value = targetIndex
+  dropTargetRow.value = rowIndex
+}
+
+function handleDragLeave(e: DragEvent, rowIndex: number) {
+  if (dropTargetRow.value === rowIndex) {
+    dropTargetRow.value = null
   }
 }
 
-function handleDragLeave() {
-  dropTargetIndex.value = null
-}
-
-function handleDropOnAnswer(e: DragEvent, targetIndex?: number) {
+function handleDrop(e: DragEvent, rowIndex: number) {
   e.preventDefault()
-  if (!draggedTile.value) return
-
   const tile = draggedTile.value
+  if (!tile) return
 
-  if (dragSource.value === 'pool') {
-    // Moving from pool to answer area
-    const currentIndex = selectedTiles.value.indexOf(tile)
-    if (currentIndex === -1) {
-      // Add tile to answer area at specific position
-      if (targetIndex !== undefined && targetIndex < selectedTiles.value.length) {
-        selectedTiles.value.splice(targetIndex, 0, tile)
-      } else {
-        selectedTiles.value.push(tile)
-      }
-    }
-  } else if (dragSource.value === 'answer') {
-    // Reordering within answer area
-    const currentIndex = selectedTiles.value.indexOf(tile)
-    if (currentIndex !== -1 && targetIndex !== undefined) {
-      selectedTiles.value.splice(currentIndex, 1)
-      // Adjust target index if we removed an item before it
-      const adjustedIndex = currentIndex < targetIndex ? targetIndex - 1 : targetIndex
-      selectedTiles.value.splice(adjustedIndex, 0, tile)
-    }
+  // Remove from source if from answer box
+  if (dragSource.value?.type === 'answer') {
+    const srcRow = dragSource.value.row!
+    const srcIndex = dragSource.value.index!
+    answerRows.value[srcRow]?.splice(srcIndex, 1)
   }
+
+  // Add to target row
+  answerRows.value[rowIndex]?.push(tile)
 
   handleDragEnd()
 }
 
 function handleDropOnPool(e: DragEvent) {
   e.preventDefault()
-  if (!draggedTile.value || dragSource.value !== 'answer') return
+  if (!draggedTile.value || dragSource.value?.type !== 'answer') return
 
   // Remove tile from answer area (return to pool)
-  const index = selectedTiles.value.indexOf(draggedTile.value)
-  if (index !== -1) {
-    selectedTiles.value.splice(index, 1)
-  }
+  const srcRow = dragSource.value.row!
+  const srcIndex = dragSource.value.index!
+  answerRows.value[srcRow]?.splice(srcIndex, 1)
 
   handleDragEnd()
 }
 
-function removeTileFromAnswer(tile: string) {
-  const index = selectedTiles.value.indexOf(tile)
-  if (index !== -1) {
-    selectedTiles.value.splice(index, 1)
-  }
+function removeTileFromAnswer(rowIndex: number, tileIndex: number) {
+  answerRows.value[rowIndex]?.splice(tileIndex, 1)
+}
+
+function clearAnswer() {
+  answerRows.value = [[], [], [], [], []]
 }
 
 // Get a stable index for a tile based on its content (for consistent styling)
@@ -212,7 +225,7 @@ async function handleSubmit() {
 
   try {
     await gameStore.submitResponse(selectedTiles.value)
-    selectedTiles.value = []
+    answerRows.value = [[], [], [], [], []]
   } catch (e) {
     console.error('Failed to submit:', e)
   }
@@ -334,37 +347,49 @@ function getPlayerNickname(playerId: string): string {
           <!-- Controls panel -->
           <div class="submission-controls">
             <p class="instruction">Build your answer:</p>
-            <p class="instruction-hint">Drag tiles to the answer area or click to add</p>
+            <p class="instruction-hint">Drag tiles into rows below (up to 5 rows)</p>
 
-            <div
-              class="answer-dropzone"
-              :class="{ 'drag-over': draggedTile && dragSource === 'pool' }"
-              @dragover="handleDragOver($event)"
-              @dragleave="handleDragLeave"
-              @drop="handleDropOnAnswer($event)"
-            >
-              <span v-if="selectedTiles.length === 0" class="placeholder">
-                Drop tiles here or click them below
-              </span>
-              <div v-else class="answer-tiles">
-                <div
-                  v-for="(tile, index) in selectedTiles"
-                  :key="'answer-' + index"
-                  class="answer-tile-wrapper"
-                  :class="{ 'drop-target': dropTargetIndex === index }"
-                  @dragover="handleDragOver($event, index)"
-                  @drop="handleDropOnAnswer($event, index)"
-                >
+            <!-- Multi-row answer box -->
+            <div class="answer-box" :class="{ 'has-content': selectedTiles.length > 0 }">
+              <div
+                v-for="(row, rowIndex) in answerRows"
+                :key="rowIndex"
+                class="answer-row"
+                :class="{
+                  'drop-target': dropTargetRow === rowIndex,
+                  empty: row.length === 0,
+                }"
+                @dragover="handleDragOver($event, rowIndex)"
+                @dragleave="handleDragLeave($event, rowIndex)"
+                @drop="handleDrop($event, rowIndex)"
+              >
+                <template v-if="row.length === 0">
+                  <span v-if="rowIndex === 0 && selectedTiles.length === 0" class="placeholder">
+                    Drag tiles here to build your answer
+                  </span>
+                  <span v-else class="row-placeholder">Row {{ rowIndex + 1 }}</span>
+                </template>
+                <template v-else>
                   <span
+                    v-for="(tile, tileIndex) in row"
+                    :key="`${rowIndex}-${tileIndex}-${tile}`"
                     class="tile answer-tile"
                     :class="'tile-style-' + getTileStyleIndex(tile)"
                     draggable="true"
-                    @dragstart="handleDragStart($event, tile, 'answer')"
+                    @dragstart="handleAnswerDragStart($event, tile, rowIndex, tileIndex)"
                     @dragend="handleDragEnd"
-                    @click="removeTileFromAnswer(tile)"
+                    @click="removeTileFromAnswer(rowIndex, tileIndex)"
                   >{{ tile }}</span>
-                </div>
+                </template>
               </div>
+              <button
+                v-if="selectedTiles.length > 0"
+                class="clear-btn"
+                @click="clearAnswer"
+                title="Clear all"
+              >
+                Clear
+              </button>
             </div>
 
             <button
@@ -379,7 +404,7 @@ function getPlayerNickname(playerId: string): string {
           <!-- Tiles grid -->
           <div
             class="tiles-section"
-            @dragover="handleDragOver($event)"
+            @dragover.prevent
             @drop="handleDropOnPool($event)"
           >
             <div class="tiles-grid">
@@ -388,12 +413,12 @@ function getPlayerNickname(playerId: string): string {
                 :key="index"
                 class="tile"
                 :class="{
-                  selected: selectedTiles.includes(tile),
+                  selected: tilesInAnswer.has(tile),
                   dragging: draggedTile === tile
                 }"
-                :draggable="!selectedTiles.includes(tile)"
+                :draggable="!tilesInAnswer.has(tile)"
                 @click="toggleTile(tile)"
-                @dragstart="handleDragStart($event, tile, 'pool')"
+                @dragstart="!tilesInAnswer.has(tile) && handleDragStart($event, tile)"
                 @dragend="handleDragEnd"
               >
                 {{ tile }}
@@ -960,48 +985,55 @@ function getPlayerNickname(playerId: string): string {
 }
 
 /* ==========================================================================
-   DRAG AND DROP ANSWER AREA
+   MULTI-ROW ANSWER BOX
    ========================================================================== */
 
-.answer-dropzone {
+.answer-box {
   background: var(--scrap-white);
-  padding: 1rem;
-  min-height: 100px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 0.75rem;
+  min-height: 180px;
   border: 3px dashed var(--ink-charcoal);
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
-  transition: border-color 0.2s, background-color 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
 }
 
-.answer-dropzone.drag-over {
-  border-color: var(--accent-red);
-  background: var(--scrap-cream);
+.answer-box.has-content {
+  border-style: solid;
 }
 
-.answer-tiles {
+.answer-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
+  min-height: 32px;
+  padding: 0.4rem;
+  background: rgba(0, 0, 0, 0.03);
+  border: 2px dashed transparent;
+  transition: all 0.2s;
+  align-items: center;
+}
+
+.answer-row.empty {
   justify-content: center;
-  width: 100%;
+  background: rgba(0, 0, 0, 0.02);
 }
 
-.answer-tile-wrapper {
-  position: relative;
-  transition: transform 0.15s;
+.answer-row.drop-target {
+  background: var(--scrap-cream);
+  border-color: var(--accent-red);
 }
 
-.answer-tile-wrapper.drop-target::before {
-  content: '';
-  position: absolute;
-  left: -4px;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--accent-red);
-  border-radius: 2px;
+.answer-row:not(.empty):hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.row-placeholder {
+  opacity: 0.3;
+  font-size: 0.75rem;
+  font-family: var(--font-typewriter);
 }
 
 .answer-tile {
@@ -1010,6 +1042,24 @@ function getPlayerNickname(playerId: string): string {
 
 .answer-tile:active {
   cursor: grabbing;
+}
+
+.clear-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--color-danger);
+  color: white;
+  border: none;
+  font-size: 0.7rem;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.clear-btn:hover {
+  opacity: 1;
 }
 
 .placeholder {
