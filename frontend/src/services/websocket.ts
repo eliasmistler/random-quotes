@@ -24,7 +24,7 @@ export class GameWebSocket {
     if (!this.gameId || !this.playerId) return
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = 'localhost:8000'
+    const host = import.meta.env.VITE_WS_HOST || window.location.host
     const url = `${protocol}//${host}/api/ws/game/${this.gameId}?player_id=${this.playerId}`
 
     this.ws = new WebSocket(url)
