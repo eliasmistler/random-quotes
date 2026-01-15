@@ -97,7 +97,7 @@ async function handleJoinGame() {
 
 <style scoped>
 .home {
-  max-width: 420px;
+  max-width: 480px;
   margin: 0 auto;
   padding: 1rem;
   text-align: center;
@@ -107,27 +107,30 @@ async function handleJoinGame() {
 @media (min-width: 640px) {
   .home {
     padding: 2rem;
+    max-width: 520px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .home {
+    padding: 3rem 2rem;
+    max-width: 560px;
   }
 }
 
 h1 {
-  font-size: 2rem;
+  font-size: clamp(1.75rem, 5vw, 2.75rem);
   margin-bottom: 0.5rem;
-  font-family: 'Courier New', Courier, monospace;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-@media (min-width: 640px) {
-  h1 {
-    font-size: 2.5rem;
-  }
+  letter-spacing: 0.08em;
 }
 
 .subtitle {
+  font-family: var(--font-mono);
   opacity: 0.7;
   margin-bottom: 2rem;
   font-style: italic;
+  font-size: clamp(0.9rem, 2.5vw, 1rem);
 }
 
 @media (min-width: 640px) {
@@ -149,6 +152,12 @@ h1 {
   }
 }
 
+@media (min-width: 1024px) {
+  .game-forms {
+    padding: 2.5rem;
+  }
+}
+
 .form-section {
   margin-bottom: 1.5rem;
 }
@@ -156,8 +165,10 @@ h1 {
 .form-section label {
   display: block;
   margin-bottom: 0.5rem;
-  font-weight: 500;
   text-align: left;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
 }
 
 .form-section input {
@@ -177,6 +188,7 @@ h1 {
 }
 
 .error-message {
+  font-family: var(--font-mono);
   background: #ffebee;
   color: #c62828;
   padding: 0.75rem 1rem;
@@ -196,13 +208,14 @@ h1 {
   width: 100%;
   padding: 1rem;
   font-size: 1.1rem;
-  font-weight: 600;
   background: linear-gradient(135deg, #4caf50 0%, #43a047 100%);
   color: white;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .create-btn:hover:not(:disabled) {
@@ -233,8 +246,9 @@ h1 {
 }
 
 .divider span {
+  font-family: var(--font-mono);
   opacity: 0.6;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
@@ -263,8 +277,6 @@ h1 {
   text-transform: uppercase;
   text-align: center;
   letter-spacing: 0.2em;
-  font-family: 'Courier New', Courier, monospace;
-  font-weight: bold;
   transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
@@ -282,13 +294,14 @@ h1 {
 .join-btn {
   padding: 1rem 1.5rem;
   font-size: 1rem;
-  font-weight: 600;
   background: var(--color-text);
   color: var(--color-background);
   border: none;
   border-radius: 8px;
   cursor: pointer;
   white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 @media (max-width: 479px) {
