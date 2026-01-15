@@ -7,7 +7,7 @@ on:
     branches: [master]
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: eu-central-1
   ECS_CLUSTER: ransom-notes-prod
 
 jobs:
