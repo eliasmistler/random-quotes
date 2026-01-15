@@ -389,7 +389,10 @@ describe('useGameStore', () => {
 
       await store.submitResponse(['tile1', 'tile2'])
 
-      expect(mockApi.submitResponse).toHaveBeenCalledWith('game-123', 'player-2', ['tile1', 'tile2'])
+      expect(mockApi.submitResponse).toHaveBeenCalledWith('game-123', 'player-2', [
+        'tile1',
+        'tile2',
+      ])
     })
   })
 

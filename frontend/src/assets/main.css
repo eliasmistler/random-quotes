@@ -1,17 +1,40 @@
 @import './base.css';
 
+/* Animation timing custom properties */
+:root {
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 400ms ease;
+  --animation-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --animation-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 #app {
-  max-width: 1280px;
+  max-width: 900px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem;
   font-weight: normal;
+  min-height: 100vh;
+}
+
+/* Mobile-first responsive padding */
+@media (min-width: 640px) {
+  #app {
+    padding: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  #app {
+    padding: 2rem;
+  }
 }
 
 a,
 .green {
   text-decoration: none;
   color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
+  transition: var(--transition-normal);
   padding: 3px;
 }
 
@@ -21,15 +44,87 @@ a,
   }
 }
 
-@media (min-width: 1024px) {
-  body {
-    display: flex;
-    place-items: center;
-  }
+/* Global button transitions */
+button {
+  transition: transform var(--transition-fast),
+              background-color var(--transition-normal),
+              opacity var(--transition-normal),
+              box-shadow var(--transition-normal);
+}
 
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Focus styles for accessibility */
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid hsla(160, 100%, 37%, 0.8);
+  outline-offset: 2px;
+}
+
+/* Smooth page transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity var(--transition-normal);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Slide up animation for elements */
+.slide-up-enter-active {
+  transition: all var(--transition-normal) var(--animation-smooth);
+}
+
+.slide-up-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* Stagger animation helper */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pulse animation for urgent elements */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Winner celebration animation */
+@keyframes celebrate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.02) rotate(-1deg);
+  }
+  75% {
+    transform: scale(1.02) rotate(1deg);
+  }
+}
+
+/* Confetti-like shimmer effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
   }
 }

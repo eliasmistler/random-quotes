@@ -80,3 +80,4 @@ nul
 
 # Claude Code
 .claude/settings.local.json
+tmpclaude-*
