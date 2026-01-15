@@ -159,6 +159,7 @@ function getPlayerNickname(playerId: string): string {
 
 <template>
   <main class="game">
+    <!-- Game Header -->
     <header class="game-header">
       <div class="round-info" v-if="gameStore.currentRound">
         Round {{ gameStore.currentRound.round_number }}
@@ -181,15 +182,16 @@ function getPlayerNickname(playerId: string): string {
 
     <!-- Submission Phase -->
     <div v-if="gameStore.phase === 'round_submission'" class="phase-content">
+      <!-- Prompt Card - Paper note style -->
       <div class="prompt-card">
+        <div class="tape-strip"></div>
         <h2>{{ gameStore.currentRound?.prompt.text }}</h2>
-        <p class="judge-info">Judge will be selected after all players submit</p>
+        <p class="judge-info">Judge will be selected after submissions</p>
       </div>
 
-      <!-- Timer and Progress Bar -->
+      <!-- Timer and Progress -->
       <div class="submission-status">
         <div class="timer" :class="{ urgent: timerUrgent }">
-          <span class="timer-icon">⏱</span>
           <span class="timer-value">{{ timerDisplay ?? '--:--' }}</span>
         </div>
         <div class="progress-indicator">
@@ -209,21 +211,22 @@ function getPlayerNickname(playerId: string): string {
         </div>
       </div>
 
+      <!-- Already submitted state -->
       <div v-if="gameStore.hasSubmitted" class="waiting-message">
-        <p>Response submitted! Waiting for other players...</p>
-        <p class="progress-detail">
-          {{ submissionProgress?.submitted }}/{{ submissionProgress?.total }} players have submitted
-        </p>
+        <p>Response submitted!</p>
+        <p class="progress-detail">Waiting for other players...</p>
       </div>
 
+      <!-- Submission area -->
       <div v-else class="submission-area">
         <div class="submission-layout">
+          <!-- Controls panel -->
           <div class="submission-controls">
-            <p class="instruction">Select tiles to create your answer:</p>
+            <p class="instruction">Build your answer:</p>
 
             <div class="selected-preview">
               <span v-if="selectedTiles.length === 0" class="placeholder">
-                Click tiles below to build your answer
+                Click tiles to build your answer
               </span>
               <span v-else class="preview-text">{{ selectedTiles.join(' ') }}</span>
             </div>
@@ -237,6 +240,7 @@ function getPlayerNickname(playerId: string): string {
             </button>
           </div>
 
+          <!-- Tiles grid -->
           <div class="tiles-section">
             <div class="tiles-grid">
               <button
@@ -257,6 +261,7 @@ function getPlayerNickname(playerId: string): string {
     <!-- Judging Phase -->
     <div v-else-if="gameStore.phase === 'round_judging'" class="phase-content">
       <div class="prompt-card">
+        <div class="tape-strip"></div>
         <h2>{{ gameStore.currentRound?.prompt.text }}</h2>
       </div>
 
@@ -277,7 +282,7 @@ function getPlayerNickname(playerId: string): string {
       </div>
 
       <div v-else class="waiting-message">
-        <p>{{ gameStore.judge?.nickname }} is choosing the winner...</p>
+        <p><strong>{{ gameStore.judge?.nickname }}</strong> is choosing the winner...</p>
 
         <div class="submissions-list readonly">
           <div
@@ -294,7 +299,7 @@ function getPlayerNickname(playerId: string): string {
     <!-- Results Phase -->
     <div v-else-if="gameStore.phase === 'round_results'" class="phase-content">
       <div class="results-area">
-        <!-- Overrule Voting Section (when judge picked self and not yet resolved) -->
+        <!-- Overrule Voting Section -->
         <div
           v-if="gameStore.judgePickedSelf && !gameStore.isOverruled && gameStore.roundWinner"
           class="overrule-section"
@@ -337,12 +342,12 @@ function getPlayerNickname(playerId: string): string {
           </div>
 
           <div v-else-if="gameStore.isJudge" class="waiting-message">
-            <p>Other players are voting on whether to overrule your choice...</p>
+            <p>Other players are voting on whether to overrule...</p>
           </div>
 
-          <!-- Voting progress visible to all players -->
+          <!-- Voting progress -->
           <div v-if="overruleVoteProgress" class="vote-progress">
-            <p class="vote-progress-title">Overrule Vote Progress</p>
+            <p class="vote-progress-title">Vote Progress</p>
             <div class="vote-progress-bar">
               <div
                 class="vote-progress-fill for"
@@ -359,27 +364,21 @@ function getPlayerNickname(playerId: string): string {
               ></div>
             </div>
             <div class="vote-progress-labels">
-              <span class="for-label">{{ overruleVoteProgress.votesFor }} for overrule</span>
+              <span class="for-label">{{ overruleVoteProgress.votesFor }} for</span>
               <span class="against-label">{{ overruleVoteProgress.votesAgainst }} against</span>
-              <span class="pending-label"
-                >{{
-                  overruleVoteProgress.totalVoters - overruleVoteProgress.totalVoted
-                }}
-                pending</span
-              >
+              <span class="pending-label">{{ overruleVoteProgress.totalVoters - overruleVoteProgress.totalVoted }} pending</span>
             </div>
-            <p class="vote-progress-note">Requires unanimous vote to overrule</p>
           </div>
         </div>
 
-        <!-- Winner Voting Section (after successful overrule) -->
+        <!-- Winner Voting Section (after overrule) -->
         <div
           v-else-if="gameStore.isOverruled && !gameStore.roundWinner"
           class="winner-voting-section"
         >
           <h2>Overruled! Vote for a new winner</h2>
           <div class="prompt-reminder">
-            <p>Prompt: {{ gameStore.currentRound?.prompt.text }}</p>
+            <p>{{ gameStore.currentRound?.prompt.text }}</p>
           </div>
 
           <div v-if="gameStore.canWinnerVote" class="voting-area">
@@ -395,9 +394,7 @@ function getPlayerNickname(playerId: string): string {
                 :disabled="gameStore.isLoading"
               >
                 <span class="submission-text">{{ submission.response_text }}</span>
-                <span class="submission-author"
-                  >- {{ getPlayerNickname(submission.player_id) }}</span
-                >
+                <span class="submission-author">- {{ getPlayerNickname(submission.player_id) }}</span>
               </button>
             </div>
           </div>
@@ -419,6 +416,7 @@ function getPlayerNickname(playerId: string): string {
         <div v-else>
           <h2>Winner!</h2>
           <div class="winner-card" :class="{ 'was-overruled': gameStore.isOverruled }">
+            <div class="tape-strip"></div>
             <p class="winner-name">{{ gameStore.roundWinner?.nickname }}</p>
             <p class="winner-answer">
               {{
@@ -431,6 +429,7 @@ function getPlayerNickname(playerId: string): string {
           </div>
         </div>
 
+        <!-- All Submissions -->
         <div class="all-submissions">
           <h3>All Answers</h3>
           <div
@@ -449,8 +448,7 @@ function getPlayerNickname(playerId: string): string {
             <span
               v-if="submission.player_id === gameStore.currentRound?.judge_id"
               class="judge-badge"
-              >(Judge)</span
-            >
+            >(Judge)</span>
           </div>
         </div>
 
@@ -475,16 +473,17 @@ function getPlayerNickname(playerId: string): string {
         <h1>Game Over!</h1>
         <div class="final-scores">
           <div
-            v-for="player in [...gameStore.players].sort((a, b) => b.score - a.score)"
+            v-for="(player, index) in [...gameStore.players].sort((a, b) => b.score - a.score)"
             :key="player.id"
             class="final-score"
             :class="{ winner: player.score >= (gameStore.config?.points_to_win ?? 5) }"
+            :style="{ animationDelay: `${index * 0.1}s` }"
           >
             <span class="rank">{{
               player.score >= (gameStore.config?.points_to_win ?? 5) ? 'Winner!' : ''
             }}</span>
             <span class="name">{{ player.nickname }}</span>
-            <span class="score">{{ player.score }} points</span>
+            <span class="score">{{ player.score }} pts</span>
           </div>
         </div>
         <button class="leave-btn" @click="leaveGame">Back to Home</button>
@@ -497,7 +496,7 @@ function getPlayerNickname(playerId: string): string {
 
 <style scoped>
 .game {
-  max-width: 900px;
+  max-width: 1000px;
   margin: 0 auto;
   padding: 1rem;
   min-height: 100vh;
@@ -511,26 +510,18 @@ function getPlayerNickname(playerId: string): string {
   }
 }
 
-@media (min-width: 1280px) {
-  .game {
-    max-width: 1400px;
-  }
-}
-
-@media (min-width: 1536px) {
-  .game {
-    max-width: 1600px;
-  }
-}
+/* ==========================================================================
+   GAME HEADER
+   ========================================================================== */
 
 .game-header {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   padding: 1rem;
-  background: var(--color-background-soft);
-  border-radius: 8px;
-  margin-bottom: 1rem;
+  background: var(--scrap-newsprint);
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-paper);
 }
 
 @media (min-width: 640px) {
@@ -542,18 +533,11 @@ function getPlayerNickname(playerId: string): string {
 }
 
 .round-info {
-  font-family: var(--font-mono);
-  font-size: clamp(1rem, 3vw, 1.3rem);
-  font-weight: bold;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-family: var(--font-headline-2);
+  font-size: clamp(1.1rem, 3vw, 1.4rem);
+  letter-spacing: 0.08em;
   text-align: center;
-}
-
-@media (min-width: 640px) {
-  .round-info {
-    text-align: left;
-  }
+  color: var(--ink-black);
 }
 
 .scores {
@@ -566,59 +550,49 @@ function getPlayerNickname(playerId: string): string {
 @media (min-width: 640px) {
   .scores {
     justify-content: flex-end;
-    gap: 0.75rem;
-  }
-}
-
-@media (min-width: 1024px) {
-  .scores {
-    gap: 1rem;
   }
 }
 
 .player-score {
-  font-family: var(--font-mono);
-  padding: 0.25rem 0.5rem;
-  background: var(--color-background);
-  border-radius: 4px;
-  font-size: clamp(0.75rem, 2vw, 0.9rem);
-  border: 1px solid var(--color-border);
+  font-family: var(--font-typewriter);
+  padding: 0.3rem 0.6rem;
+  background: var(--scrap-white);
+  font-size: 0.85rem;
+  box-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+  color: var(--ink-black);
 }
 
 .player-score.is-you {
-  background: var(--accent-primary);
-  color: var(--paper-light);
-  border-color: var(--accent-primary);
+  background: var(--accent-red);
+  color: white;
 }
+
+/* ==========================================================================
+   ERROR MESSAGE
+   ========================================================================== */
 
 .error-message {
-  font-family: var(--font-mono);
+  font-family: var(--font-typewriter);
   background: var(--color-danger-light);
   color: var(--color-danger);
-  padding: 0.75rem;
-  border-radius: 4px;
+  padding: 0.75rem 1rem;
   margin-bottom: 1rem;
-  border: 1px solid var(--color-danger);
+  border-left: 4px solid var(--color-danger);
+  animation: shake 0.4s ease;
 }
 
-.phase-content {
-  padding: 0.5rem;
-}
-
-@media (min-width: 640px) {
-  .phase-content {
-    padding: 1rem;
-  }
-}
+/* ==========================================================================
+   PROMPT CARD - Key visual element
+   ========================================================================== */
 
 .prompt-card {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-hover) 100%);
-  color: var(--paper-light);
+  background: var(--scrap-white);
   padding: 1.5rem;
-  border-radius: 12px;
   text-align: center;
   margin-bottom: 1.5rem;
-  border: 2px solid var(--accent-primary-hover);
+  position: relative;
+  box-shadow: var(--shadow-paper);
+  transform: rotate(-0.3deg);
 }
 
 @media (min-width: 640px) {
@@ -627,39 +601,123 @@ function getPlayerNickname(playerId: string): string {
   }
 }
 
-@media (min-width: 1024px) {
-  .prompt-card {
-    padding: 2.5rem 3rem;
-  }
+.prompt-card .tape-strip {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+  width: 70px;
+  height: 22px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 200, 0.85) 0%,
+    rgba(255, 255, 180, 0.7) 100%
+  );
+  box-shadow: inset 0 0 4px rgba(255, 255, 255, 0.5), 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .prompt-card h2 {
+  font-family: var(--font-headline-3);
   font-size: clamp(1.2rem, 4vw, 1.75rem);
   margin-bottom: 0.5rem;
   line-height: 1.3;
+  color: var(--ink-black);
+  font-style: italic;
 }
 
 .judge-info {
-  font-family: var(--font-mono);
-  opacity: 0.9;
-  font-size: clamp(0.8rem, 2.5vw, 0.95rem);
+  font-family: var(--font-typewriter);
+  color: var(--ink-grey);
+  font-size: 0.85rem;
 }
 
-.waiting-message {
-  font-family: var(--font-mono);
-  text-align: center;
-  padding: 1.5rem;
-  background: var(--color-background-soft);
-  border-radius: 8px;
+/* ==========================================================================
+   SUBMISSION STATUS (Timer + Progress)
+   ========================================================================== */
+
+.submission-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+  background: var(--scrap-cream);
+  margin-bottom: 1.5rem;
+  gap: 0.75rem;
+  box-shadow: var(--shadow-paper);
 }
 
 @media (min-width: 640px) {
-  .waiting-message {
-    padding: 2rem;
+  .submission-status {
+    flex-direction: row;
+    justify-content: space-between;
   }
 }
 
-/* Submission layout - split view on large screens */
+.timer {
+  font-family: var(--font-headline-2);
+  font-size: 1.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--scrap-white);
+  box-shadow: var(--shadow-paper);
+  min-width: 90px;
+  text-align: center;
+  color: var(--ink-black);
+}
+
+.timer.urgent {
+  background: var(--color-danger);
+  color: white;
+  animation: pulse 1s infinite;
+}
+
+.progress-indicator {
+  flex: 1;
+  max-width: 350px;
+  width: 100%;
+}
+
+.progress-text {
+  font-family: var(--font-typewriter);
+  display: block;
+  margin-bottom: 0.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.progress-bar {
+  height: 10px;
+  background: var(--scrap-white);
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent-red);
+  transition: width 0.3s ease;
+}
+
+/* ==========================================================================
+   WAITING MESSAGE
+   ========================================================================== */
+
+.waiting-message {
+  font-family: var(--font-typewriter);
+  text-align: center;
+  padding: 2rem;
+  background: var(--scrap-newsprint);
+  box-shadow: var(--shadow-paper);
+}
+
+.progress-detail {
+  color: var(--ink-grey);
+  margin-top: 0.5rem;
+}
+
+/* ==========================================================================
+   SUBMISSION LAYOUT
+   ========================================================================== */
+
 .submission-layout {
   display: flex;
   flex-direction: column;
@@ -674,18 +732,15 @@ function getPlayerNickname(playerId: string): string {
 
   .submission-controls {
     flex: 1;
-    min-width: 0;
+    min-width: 280px;
+    max-width: 320px;
+    position: sticky;
+    top: 1rem;
+    align-self: flex-start;
   }
 
   .tiles-section {
     flex: 2;
-    min-width: 0;
-  }
-}
-
-@media (min-width: 1280px) {
-  .submission-layout {
-    gap: 2.5rem;
   }
 }
 
@@ -695,86 +750,59 @@ function getPlayerNickname(playerId: string): string {
   gap: 1rem;
 }
 
-@media (min-width: 1024px) {
-  .submission-controls {
-    position: sticky;
-    top: 1rem;
-    align-self: flex-start;
-  }
-
-  .submission-controls .submit-btn {
-    max-width: none;
-  }
-}
-
 .instruction {
-  font-family: var(--font-mono);
-  margin-bottom: 1rem;
-  font-weight: 500;
+  font-family: var(--font-typewriter);
+  font-weight: 700;
   text-transform: uppercase;
   font-size: 0.9rem;
-  letter-spacing: 0.03em;
-}
-
-@media (min-width: 1024px) {
-  .instruction {
-    margin-bottom: 0;
-  }
+  letter-spacing: 0.05em;
 }
 
 .selected-preview {
-  background: var(--card-bg);
+  background: var(--scrap-white);
   padding: 1.25rem;
-  border-radius: 4px;
-  min-height: 60px;
-  margin-bottom: 1rem;
+  min-height: 70px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px dashed var(--card-border);
-  box-shadow: inset 0 2px 4px var(--tile-shadow);
-}
-
-@media (min-width: 640px) {
-  .selected-preview {
-    padding: 1.5rem;
-    min-height: 70px;
-  }
+  border: 2px dashed var(--ink-charcoal);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .placeholder {
-  opacity: 0.5;
+  color: var(--ink-grey);
   font-style: italic;
-  font-family: var(--font-mono);
-  font-size: clamp(0.85rem, 2.5vw, 1rem);
+  font-family: var(--font-typewriter);
 }
 
 .preview-text {
-  font-size: clamp(1rem, 3vw, 1.2rem);
-  font-weight: 600;
-  font-family: var(--font-mono);
-  color: var(--ink-dark);
+  font-family: var(--font-typewriter);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink-black);
   text-transform: lowercase;
   line-height: 1.4;
+  text-align: center;
 }
+
+/* ==========================================================================
+   TILES GRID - The heart of the game
+   ========================================================================== */
 
 .tiles-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  margin-bottom: 1.5rem;
-  padding: 0.75rem;
-  background: var(--paper-mute);
-  border-radius: 8px;
-  box-shadow: inset 0 2px 8px var(--tile-shadow);
+  padding: 1rem;
+  background: var(--color-background-mute);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.1);
   justify-content: center;
-  border: 1px solid var(--paper-dark);
 }
 
 @media (min-width: 640px) {
   .tiles-grid {
     gap: 0.5rem;
-    padding: 1rem;
+    padding: 1.25rem;
     justify-content: flex-start;
   }
 }
@@ -782,88 +810,36 @@ function getPlayerNickname(playerId: string): string {
 @media (min-width: 1024px) {
   .tiles-grid {
     gap: 0.6rem;
-    padding: 1.25rem;
+    padding: 1.5rem;
   }
 }
 
-.tile {
-  padding: 0.35rem 0.5rem;
-  /* Always white background with black text for readability */
-  background: #ffffff;
-  color: #1a1814;
-  border: 1px solid #c4b8a4;
-  border-radius: 2px;
-  cursor: pointer;
-  transition: all 0.15s;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  font-size: clamp(0.8rem, 2.5vw, 0.95rem);
-  box-shadow:
-    1px 1px 2px rgba(45, 42, 36, 0.15),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
-  text-transform: lowercase;
-}
-
-@media (min-width: 640px) {
-  .tile {
-    padding: 0.4rem 0.6rem;
-  }
-}
-
-@media (min-width: 1024px) {
-  .tile {
-    padding: 0.5rem 0.75rem;
-    font-size: 1rem;
-  }
-}
-
-.tile:hover {
-  transform: scale(1.05) rotate(-1deg);
-  box-shadow:
-    2px 2px 4px rgba(45, 42, 36, 0.2),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
-}
-
-.tile.selected {
-  /* Selected tiles: dark background with white text */
-  background: #2d2a24;
-  color: #ffffff;
-  border-color: #1a1814;
-  transform: scale(1.05);
-  box-shadow:
-    2px 2px 4px rgba(45, 42, 36, 0.25),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
-}
+/* Tile styles are in main.css - just add scoped overrides if needed */
 
 .submit-btn {
   width: 100%;
   padding: 1rem;
-  background: var(--accent-primary);
-  color: var(--paper-light);
+  background: var(--accent-red);
+  color: white;
   border: none;
-  border-radius: 8px;
-  font-size: 1.1rem;
+  font-size: 1rem;
   cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  box-shadow: var(--shadow-paper);
 }
 
 .submit-btn:hover:not(:disabled) {
-  background: var(--accent-primary-hover);
-}
-
-@media (min-width: 640px) {
-  .submit-btn {
-    max-width: 300px;
-    margin: 0 auto;
-    display: block;
-  }
+  background: var(--accent-red-dark);
+  transform: rotate(0.5deg) scale(1.02);
 }
 
 .submit-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ==========================================================================
+   JUDGING AREA
+   ========================================================================== */
 
 .judging-area {
   text-align: center;
@@ -875,300 +851,206 @@ function getPlayerNickname(playerId: string): string {
   margin-top: 1rem;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 640px) {
   .submissions-list {
     grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
   }
 }
 
-@media (min-width: 1024px) {
-  .submissions-list {
-    gap: 1.25rem;
-  }
-}
-
 .submission-card {
   padding: 1.25rem;
-  background: var(--card-bg);
-  border: 2px solid var(--card-border);
-  border-radius: 4px;
-  font-size: clamp(1rem, 3vw, 1.15rem);
+  background: var(--scrap-cream);
+  border: none;
+  font-size: 1rem;
   cursor: pointer;
-  transition: all 0.2s;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  color: var(--ink-dark);
+  font-family: var(--font-typewriter);
+  font-weight: 700;
+  color: var(--ink-black);
   text-transform: lowercase;
-  box-shadow: 2px 2px 4px var(--tile-shadow);
-}
-
-@media (min-width: 640px) {
-  .submission-card {
-    padding: 1.5rem;
-  }
+  box-shadow: var(--shadow-paper);
+  transition: transform 0.15s, box-shadow 0.15s;
 }
 
 .submission-card:hover:not(.readonly) {
-  border-color: var(--accent-primary);
   transform: scale(1.02) rotate(-0.5deg);
-  box-shadow: 3px 3px 6px var(--tile-shadow);
+  box-shadow: var(--shadow-paper-hover);
 }
 
 .submission-card.readonly {
   cursor: default;
 }
 
+.submission-card.vote-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.submission-author {
+  font-size: 0.8rem;
+  color: var(--ink-grey);
+  font-weight: 400;
+}
+
+/* ==========================================================================
+   RESULTS AREA
+   ========================================================================== */
+
 .results-area {
   text-align: center;
 }
 
 .results-area h2 {
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  font-family: var(--font-headline-2);
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  margin-bottom: 1rem;
 }
 
 .winner-card {
-  background: linear-gradient(135deg, var(--accent-tertiary) 0%, var(--accent-secondary) 100%);
+  background: var(--scrap-yellow);
   padding: 1.5rem;
-  border-radius: 12px;
-  margin: 1rem 0;
-  border: 2px solid var(--accent-secondary);
+  margin: 1rem auto;
+  max-width: 500px;
+  position: relative;
+  box-shadow: var(--shadow-paper);
+  transform: rotate(-1deg);
 }
 
 @media (min-width: 640px) {
   .winner-card {
     padding: 2rem;
-    max-width: 600px;
-    margin: 1rem auto;
   }
 }
 
+.winner-card .tape-strip {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%) rotate(3deg);
+  width: 60px;
+  height: 20px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 200, 0.85) 0%,
+    rgba(255, 255, 180, 0.7) 100%
+  );
+  box-shadow: inset 0 0 4px rgba(255, 255, 255, 0.5), 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.winner-card.self-pick {
+  background: var(--scrap-orange);
+}
+
+.winner-card.was-overruled {
+  background: var(--scrap-green);
+}
+
 .winner-name {
-  font-family: var(--font-mono);
-  font-size: clamp(1.25rem, 4vw, 1.5rem);
-  font-weight: bold;
+  font-family: var(--font-headline-2);
+  font-size: 1.25rem;
   margin-bottom: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  color: var(--ink-black);
 }
 
 .winner-answer {
-  font-size: clamp(1rem, 3vw, 1.25rem);
-  font-family: var(--font-mono);
-  font-weight: 600;
+  font-family: var(--font-typewriter);
+  font-size: 1.1rem;
+  font-weight: 700;
   text-transform: lowercase;
+  color: var(--ink-black);
 }
+
+.overrule-note {
+  font-family: var(--font-typewriter);
+  font-size: 0.8rem;
+  color: var(--ink-grey);
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+/* ==========================================================================
+   ALL SUBMISSIONS
+   ========================================================================== */
 
 .all-submissions {
   margin: 2rem 0;
 }
 
 .all-submissions h3 {
+  font-family: var(--font-headline-2);
   margin-bottom: 1rem;
-  text-transform: uppercase;
   font-size: 1rem;
-  letter-spacing: 0.03em;
 }
 
 .submission-result {
   padding: 0.75rem 1rem;
-  background: var(--card-bg);
-  border: 1px solid var(--paper-dark);
-  border-radius: 4px;
+  background: var(--scrap-newsprint);
   margin-bottom: 0.5rem;
   text-align: left;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
+  box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
 }
 
 .submission-result .answer {
-  font-family: var(--font-mono);
-  font-weight: 600;
+  font-family: var(--font-typewriter);
+  font-weight: 700;
   text-transform: lowercase;
+  color: var(--ink-black);
 }
 
 .submission-result.winner {
-  background: var(--paper);
-  border: 2px solid var(--accent-tertiary);
+  background: var(--scrap-yellow);
+  border-left: 4px solid var(--accent-yellow);
+}
+
+.submission-result.judge-self-pick {
+  border-left: 4px solid var(--color-warning);
 }
 
 .player-name {
-  font-family: var(--font-mono);
-  font-weight: 600;
+  font-family: var(--font-typewriter);
+  font-weight: 700;
+  color: var(--ink-black);
 }
 
-.advance-btn {
-  padding: 1rem 2rem;
-  background: var(--accent-primary);
-  color: var(--paper-light);
-  border: none;
-  border-radius: 8px;
-  font-size: 1.1rem;
-  cursor: pointer;
+.judge-badge {
+  font-family: var(--font-typewriter);
+  font-size: 0.65rem;
+  background: var(--accent-yellow);
+  color: var(--ink-black);
+  padding: 0.15rem 0.4rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
-.advance-btn:hover:not(:disabled) {
-  background: var(--accent-primary-hover);
-}
+/* ==========================================================================
+   VOTING AREA
+   ========================================================================== */
 
-.advance-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.waiting-text {
-  font-family: var(--font-mono);
-  opacity: 0.7;
-  font-style: italic;
-}
-
-.game-over {
-  text-align: center;
+.voting-area {
+  margin: 1.5rem 0;
   padding: 1.5rem;
-}
-
-@media (min-width: 640px) {
-  .game-over {
-    padding: 2rem;
-  }
-}
-
-.game-over h1 {
-  font-size: clamp(2rem, 6vw, 3rem);
-  margin-bottom: 2rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.final-scores {
-  margin-bottom: 2rem;
+  background: var(--scrap-white);
+  box-shadow: var(--shadow-paper);
   max-width: 500px;
   margin-left: auto;
   margin-right: auto;
 }
 
-.final-score {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  background: var(--color-background-soft);
-  border-radius: 8px;
-  margin-bottom: 0.5rem;
-  font-family: var(--font-mono);
-}
-
-.final-score .name {
-  font-weight: 600;
-}
-
-.final-score .score {
-  font-weight: 600;
-}
-
-.final-score .rank {
-  font-size: 0.85rem;
-  text-transform: uppercase;
-}
-
-.final-score.winner {
-  background: linear-gradient(135deg, var(--accent-tertiary) 0%, var(--accent-secondary) 100%);
-}
-
-.leave-btn {
-  padding: 1rem 2rem;
-  background: var(--color-text);
-  color: var(--color-background);
-  border: none;
-  border-radius: 8px;
-  font-size: 1.1rem;
-  cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.leave-game-btn {
-  position: fixed;
-  bottom: 1rem;
-  right: 1rem;
-  padding: 0.5rem 1rem;
-  background: var(--color-danger);
-  color: var(--paper-light);
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  z-index: 100;
-}
-
-.leave-game-btn:hover {
-  background: var(--color-danger-hover);
-}
-
-/* Overrule voting styles */
-.overrule-section,
-.winner-voting-section {
-  text-align: center;
-}
-
-.overrule-section h2,
-.winner-voting-section h2 {
-  font-size: clamp(1.1rem, 3.5vw, 1.5rem);
-}
-
-.winner-card.self-pick {
-  background: linear-gradient(135deg, var(--color-warning) 0%, var(--accent-secondary) 100%);
-}
-
-.winner-card.was-overruled {
-  background: linear-gradient(135deg, var(--color-success) 0%, var(--color-success-hover) 100%);
-}
-
-.overrule-note {
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  opacity: 0.9;
-  margin-top: 0.5rem;
-  font-style: italic;
-}
-
-.voting-area {
-  margin: 1.5rem 0;
-  padding: 1.25rem;
-  background: var(--color-background-soft);
-  border-radius: 8px;
-}
-
-@media (min-width: 640px) {
-  .voting-area {
-    padding: 1.5rem;
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-}
-
 .vote-prompt {
-  font-family: var(--font-mono);
-  font-size: 1rem;
-  font-weight: 500;
+  font-family: var(--font-typewriter);
+  font-weight: 700;
   margin-bottom: 0.5rem;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
 }
 
 .vote-note {
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  opacity: 0.7;
+  font-family: var(--font-typewriter);
+  font-size: 0.8rem;
+  color: var(--ink-grey);
   margin-bottom: 1rem;
 }
 
@@ -1181,30 +1063,37 @@ function getPlayerNickname(playerId: string): string {
 @media (min-width: 480px) {
   .vote-buttons {
     flex-direction: row;
-    gap: 1rem;
     justify-content: center;
+    gap: 1rem;
   }
 }
 
 .vote-btn {
   padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 8px;
   font-size: 1rem;
   cursor: pointer;
-  transition: transform 0.2s;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  box-shadow: var(--shadow-paper);
 }
 
-@media (min-width: 480px) {
-  .vote-btn {
-    min-width: 140px;
-  }
+.vote-btn.overrule {
+  background: var(--color-danger);
+  color: white;
 }
 
-.vote-btn:hover:not(:disabled) {
-  transform: scale(1.05);
+.vote-btn.overrule:hover:not(:disabled) {
+  background: var(--color-danger-hover);
+  transform: rotate(-1deg) scale(1.02);
+}
+
+.vote-btn.keep {
+  background: var(--color-success);
+  color: white;
+}
+
+.vote-btn.keep:hover:not(:disabled) {
+  background: var(--color-success-hover);
+  transform: rotate(1deg) scale(1.02);
 }
 
 .vote-btn:disabled {
@@ -1212,225 +1101,29 @@ function getPlayerNickname(playerId: string): string {
   cursor: not-allowed;
 }
 
-.vote-btn.overrule {
-  background: var(--color-danger);
-  color: var(--paper-light);
-}
-
-.vote-btn.overrule:hover:not(:disabled) {
-  background: var(--color-danger-hover);
-}
-
-.vote-btn.keep {
-  background: var(--color-success);
-  color: var(--paper-light);
-}
-
-.vote-btn.keep:hover:not(:disabled) {
-  background: var(--color-success-hover);
-}
-
-.prompt-reminder {
-  font-family: var(--font-mono);
-  background: var(--color-background-soft);
-  padding: 1rem;
-  border-radius: 8px;
-  margin: 1rem 0;
-}
-
-@media (min-width: 640px) {
-  .prompt-reminder {
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-}
-
-.submission-card.vote-option {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.submission-author {
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  opacity: 0.7;
-}
-
-.submission-result.judge-self-pick {
-  border-left: 4px solid var(--color-warning);
-}
-
-.judge-badge {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  background: var(--color-warning);
-  color: var(--ink-dark);
-  padding: 0.15rem 0.4rem;
-  border-radius: 4px;
-  margin-left: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-/* Timer and submission progress styles */
-.submission-status {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0.75rem;
-  background: var(--color-background-soft);
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  gap: 0.75rem;
-}
-
-@media (min-width: 640px) {
-  .submission-status {
-    flex-direction: row;
-    justify-content: space-between;
-    padding: 1rem;
-    gap: 1rem;
-  }
-}
-
-.timer {
-  font-family: var(--font-mono);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: clamp(1.25rem, 4vw, 1.5rem);
-  font-weight: bold;
-  padding: 0.5rem 1rem;
-  background: var(--color-background);
-  border-radius: 8px;
-  min-width: 100px;
-  justify-content: center;
-}
-
-.timer.urgent {
-  background: var(--color-danger-light);
-  color: var(--color-danger);
-  animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-.timer-icon {
-  font-size: 1rem;
-}
-
-@media (min-width: 640px) {
-  .timer-icon {
-    font-size: 1.2rem;
-  }
-}
-
-.progress-indicator {
-  flex: 1;
-  width: 100%;
-  max-width: 100%;
-}
-
-@media (min-width: 640px) {
-  .progress-indicator {
-    max-width: 300px;
-  }
-}
-
-@media (min-width: 1024px) {
-  .progress-indicator {
-    max-width: 400px;
-  }
-}
-
-.progress-text {
-  font-family: var(--font-mono);
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  text-align: center;
-  font-size: 0.85rem;
-}
-
-.progress-bar {
-  height: 10px;
-  background: var(--color-background);
-  border-radius: 5px;
-  overflow: hidden;
-}
-
-@media (min-width: 640px) {
-  .progress-bar {
-    height: 12px;
-    border-radius: 6px;
-  }
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent-primary), var(--accent-primary-light));
-  border-radius: 6px;
-  transition: width 0.3s ease;
-}
-
-.progress-detail {
-  font-family: var(--font-mono);
-  margin-top: 0.5rem;
-  font-size: 0.85rem;
-  opacity: 0.8;
-}
-
-/* Vote progress styles */
+/* Vote Progress */
 .vote-progress {
   margin-top: 1.5rem;
   padding: 1rem;
-  background: var(--color-background-soft);
-  border-radius: 8px;
-}
-
-@media (min-width: 640px) {
-  .vote-progress {
-    max-width: 500px;
-    margin-left: auto;
-    margin-right: auto;
-  }
+  background: var(--scrap-newsprint);
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .vote-progress-title {
-  font-family: var(--font-mono);
-  font-weight: 600;
+  font-family: var(--font-typewriter);
+  font-weight: 700;
   margin-bottom: 0.75rem;
-  text-align: center;
   text-transform: uppercase;
-  font-size: 0.9rem;
-  letter-spacing: 0.03em;
+  font-size: 0.85rem;
 }
 
 .vote-progress-bar {
   height: 20px;
-  background: var(--color-background);
-  border-radius: 10px;
-  overflow: hidden;
+  background: var(--scrap-white);
   position: relative;
   margin-bottom: 0.5rem;
-}
-
-@media (min-width: 640px) {
-  .vote-progress-bar {
-    height: 24px;
-    border-radius: 12px;
-  }
 }
 
 .vote-progress-fill {
@@ -1441,48 +1134,146 @@ function getPlayerNickname(playerId: string): string {
 }
 
 .vote-progress-fill.for {
-  background: linear-gradient(90deg, var(--color-danger), var(--color-danger-hover));
+  background: var(--color-danger);
   left: 0;
 }
 
 .vote-progress-fill.against {
-  background: linear-gradient(90deg, var(--color-success), var(--color-success-hover));
+  background: var(--color-success);
 }
 
 .vote-progress-labels {
-  font-family: var(--font-mono);
+  font-family: var(--font-typewriter);
   display: flex;
   justify-content: space-between;
-  font-size: 0.8rem;
-  margin-top: 0.5rem;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.for-label {
-  color: var(--color-danger);
-  font-weight: 600;
-}
-
-.against-label {
-  color: var(--color-success);
-  font-weight: 600;
-}
-
-.pending-label {
-  opacity: 0.7;
-}
-
-.vote-progress-note {
-  font-family: var(--font-mono);
   font-size: 0.75rem;
-  text-align: center;
-  opacity: 0.7;
-  margin-top: 0.5rem;
+}
+
+.for-label { color: var(--color-danger); }
+.against-label { color: var(--color-success); }
+.pending-label { color: var(--ink-grey); }
+
+.prompt-reminder {
+  font-family: var(--font-typewriter);
+  background: var(--scrap-cream);
+  padding: 1rem;
+  margin: 1rem auto;
+  max-width: 500px;
   font-style: italic;
 }
 
-/* Mobile Responsiveness - Bottom padding for fixed leave button */
+/* ==========================================================================
+   GAME OVER
+   ========================================================================== */
+
+.game-over {
+  text-align: center;
+  padding: 2rem;
+}
+
+.game-over h1 {
+  font-family: var(--font-display-2);
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  margin-bottom: 2rem;
+  color: var(--accent-red);
+}
+
+.final-scores {
+  margin-bottom: 2rem;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.final-score {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--scrap-newsprint);
+  margin-bottom: 0.5rem;
+  font-family: var(--font-typewriter);
+  box-shadow: var(--shadow-paper);
+  animation: paperDrop 0.4s var(--animation-smooth) backwards;
+}
+
+.final-score.winner {
+  background: var(--scrap-yellow);
+  transform: rotate(-1deg);
+}
+
+.final-score .name {
+  font-weight: 700;
+}
+
+.final-score .rank {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--accent-red);
+}
+
+/* ==========================================================================
+   ACTION BUTTONS
+   ========================================================================== */
+
+.advance-btn {
+  padding: 1rem 2rem;
+  background: var(--accent-red);
+  color: white;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-paper);
+}
+
+.advance-btn:hover:not(:disabled) {
+  background: var(--accent-red-dark);
+  transform: rotate(0.5deg) scale(1.02);
+}
+
+.advance-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.waiting-text {
+  font-family: var(--font-typewriter);
+  color: var(--ink-grey);
+  font-style: italic;
+}
+
+.leave-btn {
+  padding: 1rem 2rem;
+  background: var(--ink-black);
+  color: var(--scrap-white);
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-paper);
+}
+
+.leave-btn:hover {
+  background: var(--ink-charcoal);
+}
+
+.leave-game-btn {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--color-danger);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  box-shadow: var(--shadow-paper);
+  z-index: 100;
+}
+
+.leave-game-btn:hover {
+  background: var(--color-danger-hover);
+}
+
 @media (max-width: 640px) {
   .game {
     padding-bottom: 70px;
@@ -1493,9 +1284,47 @@ function getPlayerNickname(playerId: string): string {
     bottom: 0;
     left: 0;
     right: 0;
-    border-radius: 0;
     padding: 1rem;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
   }
+}
+
+/* ==========================================================================
+   ANIMATIONS
+   ========================================================================== */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes paperDrop {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) rotate(-10deg);
+  }
+  60% {
+    transform: translateY(5px) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+  20%, 40%, 60%, 80% { transform: translateX(3px); }
 }
 </style>

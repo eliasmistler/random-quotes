@@ -45,7 +45,6 @@ function leaveGame() {
 }
 
 const canStartGame = () => {
-  // Default min_players matches backend GameConfig default (2)
   const minPlayers = gameStore.config?.min_players ?? 2
   return gameStore.playerCount >= minPlayers
 }
@@ -53,37 +52,56 @@ const canStartGame = () => {
 
 <template>
   <main class="lobby">
-    <h1>Game Lobby</h1>
+    <h1 class="page-title">Game Lobby</h1>
 
+    <!-- Invite Code Section - Paper scrap style -->
     <div class="invite-section">
-      <h2>Invite Code</h2>
-      <div class="invite-code">
-        <span class="code">{{ gameStore.inviteCode }}</span>
-        <button @click="copyInviteCode" class="copy-btn" :class="{ copied }">
-          {{ copied ? 'Copied!' : 'Copy' }}
-        </button>
+      <div class="tape-strip"></div>
+      <h2>Share This Code</h2>
+      <div class="invite-code-display">
+        <span
+          v-for="(char, index) in (gameStore.inviteCode || '').split('')"
+          :key="index"
+          class="code-letter"
+          :style="{ animationDelay: `${index * 0.1}s` }"
+        >{{ char }}</span>
       </div>
-      <p class="invite-hint">Share this code with friends to join the game</p>
+      <button @click="copyInviteCode" class="copy-btn" :class="{ copied }">
+        {{ copied ? 'Copied!' : 'Copy Code' }}
+      </button>
+      <p class="invite-hint">Share this code with friends to join</p>
     </div>
 
     <div v-if="gameStore.error" class="error-message">
       {{ gameStore.error }}
     </div>
 
+    <!-- Players Section -->
     <div class="players-section">
-      <h2>Players ({{ gameStore.playerCount }}/{{ gameStore.config?.max_players ?? 8 }})</h2>
+      <h2>
+        Players
+        <span class="player-count">({{ gameStore.playerCount }}/{{ gameStore.config?.max_players ?? 8 }})</span>
+      </h2>
       <p class="min-players-hint" v-if="!canStartGame()">
-        Need at least {{ gameStore.config?.min_players ?? 2 }} players to start
+        Need {{ gameStore.config?.min_players ?? 2 }} players minimum
       </p>
       <ul class="players-list">
-        <li v-for="player in gameStore.players" :key="player.id" class="player-item">
+        <li
+          v-for="(player, index) in gameStore.players"
+          :key="player.id"
+          class="player-item"
+          :style="{ animationDelay: `${index * 0.1}s` }"
+        >
           <span class="player-name">{{ player.nickname }}</span>
-          <span v-if="player.is_host" class="host-badge">Host</span>
-          <span v-if="player.id === gameStore.playerId" class="you-badge">You</span>
+          <div class="badges">
+            <span v-if="player.is_host" class="badge host-badge">Host</span>
+            <span v-if="player.id === gameStore.playerId" class="badge you-badge">You</span>
+          </div>
         </li>
       </ul>
     </div>
 
+    <!-- Actions -->
     <div class="actions">
       <button
         v-if="gameStore.isHost"
@@ -93,7 +111,7 @@ const canStartGame = () => {
       >
         {{ gameStore.isLoading ? 'Starting...' : 'Start Game' }}
       </button>
-      <p v-else class="waiting-text">Waiting for host to start the game...</p>
+      <p v-else class="waiting-text">Waiting for host to start...</p>
       <button @click="leaveGame" class="leave-btn">Leave Game</button>
     </div>
   </main>
@@ -101,116 +119,194 @@ const canStartGame = () => {
 
 <style scoped>
 .lobby {
-  max-width: 600px;
+  max-width: 640px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 2rem 1rem;
   animation: fadeInUp 0.4s var(--animation-smooth);
 }
 
 @media (min-width: 640px) {
   .lobby {
-    padding: 2rem;
-    max-width: 680px;
+    padding: 2.5rem 2rem;
   }
 }
 
-@media (min-width: 1024px) {
-  .lobby {
-    max-width: 760px;
-  }
-}
+/* ==========================================================================
+   PAGE TITLE
+   ========================================================================== */
 
-h1 {
+.page-title {
   text-align: center;
   margin-bottom: 2rem;
-  text-transform: uppercase;
-  font-size: clamp(1.5rem, 4vw, 2rem);
-  letter-spacing: 0.05em;
+  font-family: var(--font-headline-2);
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  letter-spacing: 0.08em;
+  color: var(--color-heading);
 }
+
+/* ==========================================================================
+   INVITE SECTION
+   ========================================================================== */
 
 .invite-section {
-  background: var(--color-background-soft);
-  padding: 1.25rem;
-  border-radius: 8px;
-  margin-bottom: 2rem;
+  background: var(--scrap-white);
+  padding: 2rem 1.5rem;
   text-align: center;
-  border: 1px solid var(--color-border);
+  margin-bottom: 2rem;
+  position: relative;
+  box-shadow: var(--shadow-paper);
+  transform: rotate(-0.5deg);
 }
 
 @media (min-width: 640px) {
   .invite-section {
-    padding: 1.5rem;
+    padding: 2.5rem 2rem;
   }
+}
+
+.tape-strip {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%) rotate(2deg);
+  width: 70px;
+  height: 22px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 200, 0.85) 0%,
+    rgba(255, 255, 180, 0.7) 100%
+  );
+  box-shadow:
+    inset 0 0 4px rgba(255, 255, 255, 0.5),
+    0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .invite-section h2 {
-  margin-bottom: 1rem;
-  font-size: 1rem;
+  font-family: var(--font-typewriter);
+  font-size: 0.85rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.1em;
+  margin-bottom: 1rem;
+  color: var(--ink-grey);
 }
 
-.invite-code {
+.invite-code-display {
   display: flex;
   justify-content: center;
-  align-items: center;
-  gap: 0.75rem;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
   flex-wrap: wrap;
 }
 
-@media (min-width: 480px) {
-  .invite-code {
-    gap: 1rem;
+@media (min-width: 640px) {
+  .invite-code-display {
+    gap: 0.4rem;
   }
 }
 
-.code {
-  font-size: clamp(1.5rem, 5vw, 2.25rem);
-  font-weight: bold;
-  letter-spacing: 0.3rem;
-  font-family: var(--font-mono);
-  padding: 0.5rem 1rem;
-  background: var(--color-background);
-  border-radius: 4px;
-  border: 2px dashed var(--color-border);
+.code-letter {
+  display: inline-block;
+  font-size: clamp(1.75rem, 6vw, 2.5rem);
+  font-weight: 700;
+  padding: 0.3em 0.25em;
+  background: var(--scrap-yellow);
+  color: var(--ink-black);
+  box-shadow: var(--shadow-paper);
+  animation: paperDrop 0.4s var(--animation-smooth) backwards;
+  font-family: var(--font-headline-2);
+  letter-spacing: 0.05em;
+}
+
+.code-letter:nth-child(odd) {
+  transform: rotate(-2deg);
+  font-family: var(--font-headline-1);
+  background: var(--scrap-cream);
+}
+
+.code-letter:nth-child(even) {
+  transform: rotate(1.5deg);
+  font-family: var(--font-headline-4);
+  background: var(--scrap-pink);
+}
+
+.code-letter:nth-child(3n) {
+  background: var(--scrap-blue);
+  font-family: var(--font-display-1);
 }
 
 .copy-btn {
-  padding: 0.5rem 1rem;
-  background: var(--color-text);
-  color: var(--color-background);
+  padding: 0.75rem 1.5rem;
+  background: var(--ink-black);
+  color: var(--scrap-white);
   border: none;
-  border-radius: 4px;
   cursor: pointer;
-  text-transform: uppercase;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
+  box-shadow: var(--shadow-paper);
+  margin-bottom: 0.75rem;
 }
 
 .copy-btn:hover {
-  opacity: 0.9;
+  background: var(--ink-charcoal);
+  transform: rotate(1deg) scale(1.02);
 }
 
 .copy-btn.copied {
   background: var(--color-success);
-  color: var(--paper-light);
 }
 
 .invite-hint {
-  font-family: var(--font-mono);
-  margin-top: 1rem;
-  font-size: 0.85rem;
-  opacity: 0.7;
+  font-family: var(--font-typewriter);
+  font-size: 0.8rem;
+  color: var(--ink-grey);
 }
+
+/* ==========================================================================
+   ERROR MESSAGE
+   ========================================================================== */
+
+.error-message {
+  font-family: var(--font-typewriter);
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid var(--color-danger);
+  animation: shake 0.4s ease;
+}
+
+/* ==========================================================================
+   PLAYERS SECTION
+   ========================================================================== */
 
 .players-section {
   margin-bottom: 2rem;
 }
 
 .players-section h2 {
+  font-family: var(--font-headline-2);
+  font-size: 1.1rem;
   margin-bottom: 1rem;
-  font-size: 1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.player-count {
+  font-family: var(--font-typewriter);
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.min-players-hint {
+  font-family: var(--font-typewriter);
+  color: var(--color-warning);
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--scrap-yellow);
+  display: inline-block;
+  transform: rotate(-0.5deg);
 }
 
 .players-list {
@@ -220,7 +316,7 @@ h1 {
   gap: 0.5rem;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 480px) {
   .players-list {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
@@ -230,45 +326,62 @@ h1 {
 .player-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: var(--color-background-soft);
-  border-radius: 4px;
-  border: 1px solid var(--color-border);
+  background: var(--scrap-newsprint);
+  box-shadow: var(--shadow-paper);
+  animation: paperDrop 0.4s var(--animation-smooth) backwards;
+}
+
+.player-item:nth-child(odd) {
+  transform: rotate(-0.5deg);
+}
+
+.player-item:nth-child(even) {
+  transform: rotate(0.5deg);
 }
 
 .player-name {
-  flex: 1;
-  font-family: var(--font-mono);
-  font-weight: 600;
+  font-family: var(--font-typewriter);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--ink-black);
 }
 
-.host-badge,
-.you-badge {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
+.badges {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.badge {
+  font-family: var(--font-typewriter);
+  font-size: 0.65rem;
   padding: 0.2rem 0.5rem;
-  border-radius: 4px;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
+  font-weight: 700;
 }
 
 .host-badge {
-  background: var(--accent-tertiary);
-  color: var(--ink-dark);
+  background: var(--accent-yellow);
+  color: var(--ink-black);
 }
 
 .you-badge {
-  background: var(--accent-primary);
-  color: var(--paper-light);
+  background: var(--accent-red);
+  color: white;
 }
 
+/* ==========================================================================
+   ACTIONS
+   ========================================================================== */
+
 .actions {
-  text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
   align-items: center;
+  gap: 0.75rem;
 }
 
 @media (min-width: 480px) {
@@ -279,68 +392,88 @@ h1 {
   }
 }
 
-.leave-btn {
-  padding: 0.75rem 2rem;
-  background: var(--color-danger);
-  color: var(--paper-light);
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  width: 100%;
-  max-width: 200px;
-}
-
-.leave-btn:hover {
-  background: var(--color-danger-hover);
-}
-
-.error-message {
-  font-family: var(--font-mono);
-  background: var(--color-danger-light);
-  color: var(--color-danger);
-  padding: 0.75rem;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-  border: 1px solid var(--color-danger);
-}
-
-.min-players-hint {
-  font-family: var(--font-mono);
-  color: var(--color-warning);
-  font-size: 0.85rem;
-  margin-bottom: 0.5rem;
-}
-
 .start-btn {
-  padding: 1rem 2rem;
-  background: var(--accent-primary);
-  color: var(--paper-light);
+  padding: 1rem 2.5rem;
+  background: var(--accent-red);
+  color: white;
   border: none;
-  border-radius: 4px;
   cursor: pointer;
   font-size: 1.1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  box-shadow: var(--shadow-paper);
+  transform: rotate(-0.5deg);
   width: 100%;
-  max-width: 200px;
+  max-width: 220px;
 }
 
 .start-btn:hover:not(:disabled) {
-  background: var(--accent-primary-hover);
+  background: var(--accent-red-dark);
+  box-shadow: var(--shadow-paper-hover);
+  transform: rotate(0.5deg) scale(1.02);
 }
 
 .start-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .waiting-text {
-  font-family: var(--font-mono);
-  margin-bottom: 1rem;
-  opacity: 0.7;
+  font-family: var(--font-typewriter);
+  color: var(--color-text-muted);
   font-style: italic;
+  padding: 1rem;
+}
+
+.leave-btn {
+  padding: 0.75rem 1.5rem;
+  background: var(--scrap-newsprint);
+  color: var(--color-danger);
+  border: 2px solid var(--color-danger);
+  cursor: pointer;
+  font-size: 0.9rem;
+  box-shadow: var(--shadow-paper);
+  width: 100%;
+  max-width: 180px;
+}
+
+.leave-btn:hover {
+  background: var(--color-danger);
+  color: white;
+  transform: rotate(1deg);
+}
+
+/* ==========================================================================
+   ANIMATIONS
+   ========================================================================== */
+
+@keyframes paperDrop {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) rotate(-10deg);
+  }
+  60% {
+    transform: translateY(5px) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+  20%, 40%, 60%, 80% { transform: translateX(3px); }
 }
 </style>

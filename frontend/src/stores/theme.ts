@@ -32,7 +32,10 @@ export const useThemeStore = defineStore('theme', () => {
     const modes: ThemeMode[] = ['system', 'light', 'dark']
     const currentIndex = modes.indexOf(theme.value)
     const nextIndex = (currentIndex + 1) % modes.length
-    setTheme(modes[nextIndex])
+    const nextTheme = modes[nextIndex]
+    if (nextTheme) {
+      setTheme(nextTheme)
+    }
   }
 
   // Initialize theme on store creation

@@ -1,169 +1,352 @@
-/* Vintage paper color palette */
+/* =============================================================================
+   RANSOM NOTES - Magazine Cutout Aesthetic
+   A chaotic collage of typography, paper scraps, and newsprint textures
+   ============================================================================= */
+
+/* Google Fonts - Mixed typography for authentic cutout feel */
+@import url('https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Anton&family=Bebas+Neue&family=Bodoni+Moda:opsz,wght@6..96,400;6..96,700;6..96,900&family=Courier+Prime:wght@400;700&family=Creepster&family=DM+Serif+Display&family=Fascinate&family=Libre+Baskerville:wght@400;700&family=Lobster&family=Oswald:wght@400;700&family=Permanent+Marker&family=Playfair+Display:wght@400;700;900&family=Press+Start+2P&family=Righteous&family=Roboto+Condensed:wght@700&family=Roboto+Slab:wght@400;700&family=Special+Elite&family=UnifrakturMaguntia&display=swap');
+
 :root {
-  /* Paper tones - warm aged parchment (light mode) */
-  --paper-light: #f7f3eb;
-  --paper: #f0e9db;
-  --paper-soft: #e8dfd0;
-  --paper-mute: #ddd2c0;
-  --paper-dark: #d0c4b0;
+  /* ==========================================================================
+     COLOR PALETTE - Newsprint & Magazine Tones
+     ========================================================================== */
 
-  /* Ink tones - dark charcoal to black */
-  --ink-black: #1a1814;
-  --ink-dark: #2d2a24;
-  --ink-medium: #4a453d;
-  --ink-light: #6b645a;
-  --ink-faded: #8a8279;
+  /* Newsprint paper tones */
+  --newsprint-white: #f5f2e8;
+  --newsprint-cream: #ede7d4;
+  --newsprint-aged: #e0d5b8;
+  --newsprint-yellow: #f2e8c9;
+  --newsprint-dark: #d4c9a8;
 
-  /* Dark parchment tones (for dark mode) */
-  --parchment-dark: #2a2520;
-  --parchment-dark-soft: #352f28;
-  --parchment-dark-mute: #403830;
-  --parchment-dark-light: #4d4438;
+  /* Magazine glossy tones */
+  --magazine-white: #ffffff;
+  --magazine-gloss: #fafafa;
 
-  /* Accent colors - burnt orange/brown tones */
-  --accent-primary: #b85c38;
-  --accent-primary-hover: #a04d2d;
-  --accent-primary-light: #c97a5a;
-  --accent-secondary: #d4a574;
-  --accent-tertiary: #c9a227;
+  /* Ink colors */
+  --ink-black: #1a1612;
+  --ink-dark: #2d2820;
+  --ink-charcoal: #3d3830;
+  --ink-grey: #5c5448;
+  --ink-light: #8a7d6d;
 
-  /* Semantic colors - light mode */
-  --color-danger: #a63d2f;
-  --color-danger-hover: #8c3427;
-  --color-danger-light: #e8d4d0;
-  --color-success: #6b7c4c;
-  --color-success-hover: #5a6940;
-  --color-warning: #c9a227;
+  /* Accent colors - bold magazine colors */
+  --accent-red: #c41e3a;
+  --accent-red-dark: #9a1830;
+  --accent-yellow: #f4d03f;
+  --accent-orange: #e67e22;
+  --accent-blue: #2c5aa0;
+  --accent-green: #27ae60;
+  --accent-pink: #e84393;
+  --accent-purple: #9b59b6;
 
-  /* Typography */
-  --font-mono: 'Courier New', Courier, monospace;
+  /* Paper scrap colors for tiles */
+  --scrap-white: #ffffff;
+  --scrap-cream: #fdf6e3;
+  --scrap-yellow: #fff9c4;
+  --scrap-pink: #fce4ec;
+  --scrap-blue: #e3f2fd;
+  --scrap-green: #e8f5e9;
+  --scrap-orange: #fff3e0;
+  --scrap-grey: #f5f5f5;
+  --scrap-newsprint: #f7f3e3;
 
-  /* Parchment texture gradient (light) */
-  --parchment-texture:
-    radial-gradient(ellipse at 20% 30%, rgba(139, 115, 85, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(139, 115, 85, 0.06) 0%, transparent 40%),
-    radial-gradient(ellipse at 40% 80%, rgba(139, 115, 85, 0.07) 0%, transparent 45%),
-    radial-gradient(ellipse at 90% 70%, rgba(139, 115, 85, 0.05) 0%, transparent 35%),
-    radial-gradient(ellipse at 10% 90%, rgba(139, 115, 85, 0.06) 0%, transparent 40%),
-    linear-gradient(180deg, rgba(139, 115, 85, 0.03) 0%, transparent 30%, rgba(139, 115, 85, 0.05) 100%);
+  /* Semantic colors */
+  --color-danger: #c0392b;
+  --color-danger-hover: #a5281b;
+  --color-danger-light: #fadbd8;
+  --color-success: #27ae60;
+  --color-success-hover: #1e8449;
+  --color-warning: #f39c12;
 
-  /* Parchment texture gradient (dark) */
-  --parchment-texture-dark:
-    radial-gradient(ellipse at 20% 30%, rgba(212, 165, 116, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(212, 165, 116, 0.04) 0%, transparent 40%),
-    radial-gradient(ellipse at 40% 80%, rgba(212, 165, 116, 0.05) 0%, transparent 45%),
-    radial-gradient(ellipse at 90% 70%, rgba(212, 165, 116, 0.03) 0%, transparent 35%),
-    radial-gradient(ellipse at 10% 90%, rgba(212, 165, 116, 0.04) 0%, transparent 40%),
-    linear-gradient(180deg, rgba(212, 165, 116, 0.02) 0%, transparent 30%, rgba(212, 165, 116, 0.03) 100%);
+  /* ==========================================================================
+     TYPOGRAPHY - Cutout Magazine Fonts
+     ========================================================================== */
+
+  /* Font stacks for different letter styles */
+  --font-headline-1: 'Abril Fatface', serif;
+  --font-headline-2: 'Bebas Neue', sans-serif;
+  --font-headline-3: 'Playfair Display', serif;
+  --font-headline-4: 'Anton', sans-serif;
+  --font-headline-5: 'DM Serif Display', serif;
+  --font-headline-6: 'Bodoni Moda', serif;
+
+  --font-display-1: 'Permanent Marker', cursive;
+  --font-display-2: 'Creepster', system-ui;
+  --font-display-3: 'Lobster', cursive;
+  --font-display-4: 'Righteous', sans-serif;
+  --font-display-5: 'Fascinate', system-ui;
+
+  --font-body-1: 'Courier Prime', monospace;
+  --font-body-2: 'Special Elite', monospace;
+  --font-body-3: 'Libre Baskerville', serif;
+  --font-body-4: 'Roboto Slab', serif;
+  --font-body-5: 'Roboto Condensed', sans-serif;
+  --font-body-6: 'Oswald', sans-serif;
+
+  --font-blackletter: 'UnifrakturMaguntia', cursive;
+  --font-pixel: 'Press Start 2P', monospace;
+
+  /* Primary UI fonts */
+  --font-mono: 'Courier Prime', 'Courier New', monospace;
+  --font-typewriter: 'Special Elite', 'Courier Prime', monospace;
+
+  /* ==========================================================================
+     TEXTURES & EFFECTS
+     ========================================================================== */
+
+  /* Newsprint halftone texture */
+  --texture-halftone: url("data:image/svg+xml,%3Csvg viewBox='0 0 4 4' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='1' cy='1' r='0.5' fill='%23d4c9a8' fill-opacity='0.3'/%3E%3C/svg%3E");
+
+  /* Paper grain texture */
+  --texture-grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+
+  /* Newspaper column lines */
+  --texture-columns: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    transparent 300px,
+    rgba(0,0,0,0.03) 300px,
+    rgba(0,0,0,0.03) 301px
+  );
+
+  /* Coffee stain overlay (subtle) */
+  --texture-stain: radial-gradient(
+    ellipse 150px 100px at 85% 20%,
+    rgba(139, 90, 43, 0.04) 0%,
+    rgba(139, 90, 43, 0.02) 40%,
+    transparent 70%
+  );
+
+  /* Fold crease */
+  --texture-crease: linear-gradient(
+    180deg,
+    transparent 0%,
+    transparent 49%,
+    rgba(0,0,0,0.03) 49.5%,
+    rgba(255,255,255,0.05) 50%,
+    rgba(0,0,0,0.02) 50.5%,
+    transparent 51%,
+    transparent 100%
+  );
+
+  /* ==========================================================================
+     SHADOWS & DEPTH
+     ========================================================================== */
+
+  --shadow-paper: 2px 2px 0 rgba(0,0,0,0.1),
+                  3px 3px 8px rgba(0,0,0,0.15);
+  --shadow-paper-hover: 4px 4px 0 rgba(0,0,0,0.1),
+                        6px 6px 16px rgba(0,0,0,0.2);
+  --shadow-lifted: 0 8px 24px rgba(0,0,0,0.25),
+                   0 2px 4px rgba(0,0,0,0.1);
+  --shadow-tape: inset 0 0 3px rgba(255,255,255,0.5),
+                 0 1px 2px rgba(0,0,0,0.1);
+
+  /* ==========================================================================
+     ANIMATIONS
+     ========================================================================== */
+
+  --transition-fast: 120ms ease-out;
+  --transition-normal: 200ms ease-out;
+  --transition-slow: 350ms ease-out;
+  --animation-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --animation-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Light theme (default) */
+/* =============================================================================
+   LIGHT THEME (Default) - Newsprint Background
+   ============================================================================= */
+
 :root,
 [data-theme='light'] {
-  --color-background: var(--paper-light);
-  --color-background-soft: var(--paper-soft);
-  --color-background-mute: var(--paper-mute);
+  --color-background: var(--newsprint-cream);
+  --color-background-soft: var(--newsprint-white);
+  --color-background-mute: var(--newsprint-aged);
 
-  --color-border: var(--paper-dark);
-  --color-border-hover: var(--card-border);
+  --color-border: var(--newsprint-dark);
+  --color-border-hover: var(--ink-light);
 
-  --color-heading: var(--ink-dark);
+  --color-heading: var(--ink-black);
   --color-text: var(--ink-dark);
+  --color-text-muted: var(--ink-grey);
 
-  --tile-bg: #faf7f0;
-  --tile-border: #c4b8a4;
-  --tile-shadow: rgba(45, 42, 36, 0.15);
-  --card-bg: #f5f0e6;
-  --card-border: #b8a990;
+  --body-background: var(--newsprint-cream);
+  --card-bg: var(--newsprint-white);
+  --card-border: var(--newsprint-dark);
 
-  --current-parchment-texture: var(--parchment-texture);
-  --body-background: var(--paper-light);
+  --tile-shadow: rgba(45, 42, 36, 0.2);
 }
 
-/* Dark theme */
+/* =============================================================================
+   DARK THEME - Noir Newspaper
+   ============================================================================= */
+
 [data-theme='dark'] {
-  --color-background: var(--parchment-dark);
-  --color-background-soft: var(--parchment-dark-soft);
-  --color-background-mute: var(--parchment-dark-mute);
+  --color-background: #1a1612;
+  --color-background-soft: #252019;
+  --color-background-mute: #2d2820;
 
-  --color-border: var(--parchment-dark-light);
-  --color-border-hover: var(--ink-faded);
+  --color-border: #3d3830;
+  --color-border-hover: #5c5448;
 
-  --color-heading: var(--paper);
-  --color-text: var(--paper-soft);
+  --color-heading: var(--newsprint-white);
+  --color-text: var(--newsprint-cream);
+  --color-text-muted: var(--ink-light);
 
-  --tile-bg: var(--parchment-dark-soft);
-  --tile-border: var(--parchment-dark-light);
-  --tile-shadow: rgba(0, 0, 0, 0.3);
-  --card-bg: var(--parchment-dark-soft);
-  --card-border: var(--parchment-dark-mute);
+  --body-background: #1a1612;
+  --card-bg: #252019;
+  --card-border: #3d3830;
 
-  --color-danger-light: #3d2a28;
+  --color-danger-light: #3d2525;
+  --tile-shadow: rgba(0, 0, 0, 0.4);
 
-  --current-parchment-texture: var(--parchment-texture-dark);
-  --body-background: var(--parchment-dark);
+  /* Dark mode scrap colors - still visible paper */
+  --scrap-white: #f5f2e8;
+  --scrap-cream: #ede7d4;
+  --scrap-yellow: #f5e6a3;
+  --scrap-pink: #f0c5d0;
+  --scrap-blue: #c5d8ed;
+  --scrap-green: #c5e0c5;
+  --scrap-orange: #f0d8c0;
+  --scrap-grey: #e0dcd0;
+  --scrap-newsprint: #e8e0c8;
 }
 
-/* System theme - respects prefers-color-scheme when data-theme is not set or is 'system' */
+/* System theme preference */
 @media (prefers-color-scheme: dark) {
   [data-theme='system'],
   :root:not([data-theme]) {
-    --color-background: var(--parchment-dark);
-    --color-background-soft: var(--parchment-dark-soft);
-    --color-background-mute: var(--parchment-dark-mute);
-
-    --color-border: var(--parchment-dark-light);
-    --color-border-hover: var(--ink-faded);
-
-    --color-heading: var(--paper);
-    --color-text: var(--paper-soft);
-
-    --tile-bg: var(--parchment-dark-soft);
-    --tile-border: var(--parchment-dark-light);
-    --tile-shadow: rgba(0, 0, 0, 0.3);
-    --card-bg: var(--parchment-dark-soft);
-    --card-border: var(--parchment-dark-mute);
-
-    --color-danger-light: #3d2a28;
-
-    --current-parchment-texture: var(--parchment-texture-dark);
-    --body-background: var(--parchment-dark);
+    --color-background: #1a1612;
+    --color-background-soft: #252019;
+    --color-background-mute: #2d2820;
+    --color-border: #3d3830;
+    --color-border-hover: #5c5448;
+    --color-heading: var(--newsprint-white);
+    --color-text: var(--newsprint-cream);
+    --color-text-muted: var(--ink-light);
+    --body-background: #1a1612;
+    --card-bg: #252019;
+    --card-border: #3d3830;
+    --color-danger-light: #3d2525;
+    --tile-shadow: rgba(0, 0, 0, 0.4);
   }
 }
+
+/* =============================================================================
+   RESET & BASE STYLES
+   ============================================================================= */
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
   margin: 0;
-  font-weight: normal;
 }
 
 body {
   min-height: 100vh;
   color: var(--color-text);
   background-color: var(--body-background);
-  background-image: var(--current-parchment-texture);
+  background-image:
+    var(--texture-stain),
+    var(--texture-columns),
+    var(--texture-halftone);
+  background-size: 100% 100%, 100% 100%, 4px 4px;
   background-attachment: fixed;
-  transition:
-    color 0.3s ease,
-    background-color 0.3s ease;
+  transition: color 0.3s ease, background-color 0.3s ease;
   line-height: 1.6;
-  font-family:
-    Inter,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    Oxygen,
-    Ubuntu,
-    Cantarell,
-    'Fira Sans',
-    'Droid Sans',
-    'Helvetica Neue',
-    sans-serif;
-  font-size: 15px;
+  font-family: var(--font-body-3);
+  font-size: 16px;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* =============================================================================
+   UTILITY CLASSES FOR CUTOUT LETTERS
+   ============================================================================= */
+
+/* Random rotation utilities */
+.rot-ccw-3 { transform: rotate(-3deg); }
+.rot-ccw-2 { transform: rotate(-2deg); }
+.rot-ccw-1 { transform: rotate(-1deg); }
+.rot-0 { transform: rotate(0deg); }
+.rot-cw-1 { transform: rotate(1deg); }
+.rot-cw-2 { transform: rotate(2deg); }
+.rot-cw-3 { transform: rotate(3deg); }
+
+/* Paper scrap backgrounds */
+.scrap-white { background: var(--scrap-white); }
+.scrap-cream { background: var(--scrap-cream); }
+.scrap-yellow { background: var(--scrap-yellow); }
+.scrap-pink { background: var(--scrap-pink); }
+.scrap-blue { background: var(--scrap-blue); }
+.scrap-green { background: var(--scrap-green); }
+.scrap-orange { background: var(--scrap-orange); }
+.scrap-newsprint { background: var(--scrap-newsprint); }
+
+/* Font utilities */
+.font-headline-1 { font-family: var(--font-headline-1); }
+.font-headline-2 { font-family: var(--font-headline-2); }
+.font-headline-3 { font-family: var(--font-headline-3); }
+.font-headline-4 { font-family: var(--font-headline-4); }
+.font-headline-5 { font-family: var(--font-headline-5); }
+.font-headline-6 { font-family: var(--font-headline-6); }
+.font-display-1 { font-family: var(--font-display-1); }
+.font-display-2 { font-family: var(--font-display-2); }
+.font-display-3 { font-family: var(--font-display-3); }
+.font-display-4 { font-family: var(--font-display-4); }
+.font-body-1 { font-family: var(--font-body-1); }
+.font-body-2 { font-family: var(--font-body-2); }
+.font-blackletter { font-family: var(--font-blackletter); }
+
+/* =============================================================================
+   TAPE EFFECT
+   ============================================================================= */
+
+.tape {
+  position: relative;
+}
+
+.tape::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+  width: 60px;
+  height: 20px;
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,200,0.7) 0%,
+    rgba(255,255,180,0.5) 100%
+  );
+  box-shadow: var(--shadow-tape);
+  border-radius: 1px;
+}
+
+.tape-corner::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  right: 10px;
+  width: 40px;
+  height: 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,200,0.6) 0%,
+    rgba(255,255,180,0.4) 100%
+  );
+  transform: rotate(15deg);
+  box-shadow: var(--shadow-tape);
+  border-radius: 1px;
+}
+
+/* =============================================================================
+   SELECTION STYLES
+   ============================================================================= */
+
+::selection {
+  background: var(--accent-yellow);
+  color: var(--ink-black);
 }
