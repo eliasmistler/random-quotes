@@ -96,7 +96,78 @@ npm run format             # Run Prettier
 
 - `/dev` - Start backend and frontend servers, open browser
 
-- `/ship` - Run tests, commit, and push to master
+- `/ship` - Run tests, commit, create PR, merge, and clean up (see Multi-Agent Workflow)
+
+## Multi-Agent Workflow
+
+This project uses a multi-agent setup where multiple Claude agents may work concurrently. Follow this branching workflow for all feature work:
+
+### Branch Naming Convention
+
+Create branches with the format: `<agent-name>/<feature-name>`
+
+Examples:
+- `claude-1/add-user-authentication`
+- `claude-2/fix-websocket-reconnect`
+- `opus/implement-game-timer`
+
+### Workflow Steps
+
+**At the start of any feature work:**
+
+1. **Ensure you're on master and up to date:**
+   ```bash
+   git checkout master
+   git pull origin master
+   ```
+
+2. **Create and checkout a new feature branch:**
+   ```bash
+   git checkout -b <agent-name>/<feature-name>
+   ```
+
+**During development:**
+
+3. **Make commits as needed** on your feature branch
+
+**When ready to ship (`/ship` command):**
+
+4. **Run all tests** to ensure nothing is broken
+
+5. **Commit any remaining changes** to your feature branch
+
+6. **Pull latest from master and rebase:**
+   ```bash
+   git fetch origin master
+   git rebase origin/master
+   ```
+
+7. **Resolve any conflicts** if they occur, then continue the rebase
+
+8. **Push your branch to remote:**
+   ```bash
+   git push -u origin <agent-name>/<feature-name>
+   ```
+
+9. **Create and merge the PR** (no approval needed):
+   ```bash
+   gh pr create --fill --base master
+   gh pr merge --merge --delete-branch
+   ```
+
+10. **Clean up locally:**
+    ```bash
+    git checkout master
+    git pull origin master
+    git branch -d <agent-name>/<feature-name>
+    ```
+
+### Important Notes
+
+- Always work on a feature branch, never directly on master
+- Keep feature branches short-lived to minimize merge conflicts
+- If conflicts occur during rebase, resolve them carefully and test again before pushing
+- The `--delete-branch` flag on `gh pr merge` removes the remote branch automatically
 
 ### Code Style
 
