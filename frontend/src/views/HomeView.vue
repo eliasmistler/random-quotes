@@ -143,7 +143,8 @@ h1 {
   background: var(--color-background-soft);
   padding: 1.5rem;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px var(--tile-shadow);
+  border: 1px solid var(--color-border);
 }
 
 @media (min-width: 640px) {
@@ -183,19 +184,20 @@ h1 {
 }
 
 .form-section input:focus {
-  border-color: #4caf50;
-  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(184, 92, 56, 0.2);
 }
 
 .error-message {
   font-family: var(--font-mono);
-  background: #ffebee;
-  color: #c62828;
+  background: var(--color-danger-light);
+  color: var(--color-danger);
   padding: 0.75rem 1rem;
   border-radius: 8px;
   margin-bottom: 1rem;
   font-size: 0.9rem;
   animation: fadeInUp 0.3s var(--animation-smooth);
+  border: 1px solid var(--color-danger);
 }
 
 .actions {
@@ -208,19 +210,19 @@ h1 {
   width: 100%;
   padding: 1rem;
   font-size: 1.1rem;
-  background: linear-gradient(135deg, #4caf50 0%, #43a047 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-hover) 100%);
+  color: var(--paper-light);
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+  box-shadow: 0 4px 12px rgba(184, 92, 56, 0.3);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .create-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #43a047 0%, #388e3c 100%);
-  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4);
+  background: linear-gradient(135deg, var(--accent-primary-hover) 0%, #8a4025 100%);
+  box-shadow: 0 6px 16px rgba(184, 92, 56, 0.4);
   transform: translateY(-1px);
 }
 
@@ -281,8 +283,8 @@ h1 {
 }
 
 .invite-input:focus {
-  border-color: var(--color-text);
-  box-shadow: 0 0 0 3px rgba(128, 128, 128, 0.2);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(184, 92, 56, 0.2);
 }
 
 .invite-input::placeholder {

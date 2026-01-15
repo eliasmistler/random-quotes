@@ -45,16 +45,17 @@
 }
 
 a,
-.green {
+.accent {
   text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
+  color: var(--accent-primary);
   transition: var(--transition-normal);
   padding: 3px;
 }
 
 @media (hover: hover) {
   a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
+    background-color: var(--accent-secondary);
+    color: var(--ink-dark);
   }
 }
 
@@ -95,7 +96,7 @@ label {
 /* Focus styles for accessibility */
 button:focus-visible,
 input:focus-visible {
-  outline: 2px solid hsla(160, 100%, 37%, 0.8);
+  outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
 }
 

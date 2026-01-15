@@ -491,169 +491,305 @@ function getPlayerNickname(playerId: string): string {
 
 <style scoped>
 .game {
-  max-width: 800px;
+  max-width: 900px;
   margin: 0 auto;
   padding: 1rem;
   min-height: 100vh;
+  animation: fadeInUp 0.4s var(--animation-smooth);
+}
+
+@media (min-width: 1024px) {
+  .game {
+    max-width: 1000px;
+    padding: 1.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .game {
+    max-width: 1100px;
+  }
 }
 
 .game-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.75rem;
   padding: 1rem;
   background: var(--color-background-soft);
   border-radius: 8px;
   margin-bottom: 1rem;
 }
 
+@media (min-width: 640px) {
+  .game-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
 .round-info {
-  font-size: 1.2rem;
+  font-family: var(--font-mono);
+  font-size: clamp(1rem, 3vw, 1.3rem);
   font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .round-info {
+    text-align: left;
+  }
 }
 
 .scores {
   display: flex;
-  gap: 1rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
+  justify-content: center;
+}
+
+@media (min-width: 640px) {
+  .scores {
+    justify-content: flex-end;
+    gap: 0.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .scores {
+    gap: 1rem;
+  }
 }
 
 .player-score {
+  font-family: var(--font-mono);
   padding: 0.25rem 0.5rem;
   background: var(--color-background);
   border-radius: 4px;
-  font-size: 0.9rem;
+  font-size: clamp(0.75rem, 2vw, 0.9rem);
+  border: 1px solid var(--color-border);
 }
 
 .player-score.is-you {
-  background: #4caf50;
-  color: white;
+  background: var(--accent-primary);
+  color: var(--paper-light);
+  border-color: var(--accent-primary);
 }
 
 .error-message {
-  background: #ffebee;
-  color: #c62828;
+  font-family: var(--font-mono);
+  background: var(--color-danger-light);
+  color: var(--color-danger);
   padding: 0.75rem;
   border-radius: 4px;
   margin-bottom: 1rem;
+  border: 1px solid var(--color-danger);
 }
 
 .phase-content {
-  padding: 1rem;
+  padding: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .phase-content {
+    padding: 1rem;
+  }
 }
 
 .prompt-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 2rem;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-hover) 100%);
+  color: var(--paper-light);
+  padding: 1.5rem;
   border-radius: 12px;
   text-align: center;
   margin-bottom: 1.5rem;
+  border: 2px solid var(--accent-primary-hover);
+}
+
+@media (min-width: 640px) {
+  .prompt-card {
+    padding: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .prompt-card {
+    padding: 2.5rem 3rem;
+  }
 }
 
 .prompt-card h2 {
-  font-size: 1.5rem;
+  font-size: clamp(1.2rem, 4vw, 1.75rem);
   margin-bottom: 0.5rem;
+  line-height: 1.3;
 }
 
 .judge-info {
+  font-family: var(--font-mono);
   opacity: 0.9;
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 2.5vw, 0.95rem);
 }
 
 .waiting-message {
+  font-family: var(--font-mono);
   text-align: center;
-  padding: 2rem;
+  padding: 1.5rem;
   background: var(--color-background-soft);
   border-radius: 8px;
 }
 
+@media (min-width: 640px) {
+  .waiting-message {
+    padding: 2rem;
+  }
+}
+
 .instruction {
+  font-family: var(--font-mono);
   margin-bottom: 1rem;
   font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  letter-spacing: 0.03em;
 }
 
 .selected-preview {
-  background: #f5f5dc;
-  padding: 1.5rem;
+  background: var(--card-bg);
+  padding: 1.25rem;
   border-radius: 4px;
-  min-height: 70px;
+  min-height: 60px;
   margin-bottom: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px dashed #8b7355;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 2px dashed var(--card-border);
+  box-shadow: inset 0 2px 4px var(--tile-shadow);
+}
+
+@media (min-width: 640px) {
+  .selected-preview {
+    padding: 1.5rem;
+    min-height: 70px;
+  }
 }
 
 .placeholder {
   opacity: 0.5;
   font-style: italic;
-  font-family: 'Courier New', Courier, monospace;
+  font-family: var(--font-mono);
+  font-size: clamp(0.85rem, 2.5vw, 1rem);
 }
 
 .preview-text {
-  font-size: 1.1rem;
+  font-size: clamp(1rem, 3vw, 1.2rem);
   font-weight: 600;
-  font-family: 'Courier New', Courier, monospace;
-  color: #1a1a1a;
+  font-family: var(--font-mono);
+  color: var(--ink-dark);
   text-transform: lowercase;
+  line-height: 1.4;
 }
 
 .tiles-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.4rem;
   margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: #d4c4a8;
+  padding: 0.75rem;
+  background: var(--paper-mute);
   border-radius: 8px;
-  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: inset 0 2px 8px var(--tile-shadow);
+  justify-content: center;
+  border: 1px solid var(--paper-dark);
+}
+
+@media (min-width: 640px) {
+  .tiles-grid {
+    gap: 0.5rem;
+    padding: 1rem;
+    justify-content: flex-start;
+  }
+}
+
+@media (min-width: 1024px) {
+  .tiles-grid {
+    gap: 0.6rem;
+    padding: 1.25rem;
+  }
 }
 
 .tile {
-  padding: 0.4rem 0.6rem;
-  background: #ffffff;
-  color: #1a1a1a;
-  border: 1px solid #ccc;
+  padding: 0.35rem 0.5rem;
+  background: var(--tile-bg);
+  color: var(--ink-dark);
+  border: 1px solid var(--tile-border);
   border-radius: 2px;
   cursor: pointer;
   transition: all 0.15s;
-  font-family: 'Courier New', Courier, monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: clamp(0.8rem, 2.5vw, 0.95rem);
   box-shadow:
-    1px 1px 2px rgba(0, 0, 0, 0.15),
+    1px 1px 2px var(--tile-shadow),
     inset 0 0 0 1px rgba(255, 255, 255, 0.5);
   text-transform: lowercase;
+}
+
+@media (min-width: 640px) {
+  .tile {
+    padding: 0.4rem 0.6rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .tile {
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+  }
 }
 
 .tile:hover {
   transform: scale(1.05) rotate(-1deg);
   box-shadow:
-    2px 2px 4px rgba(0, 0, 0, 0.2),
+    2px 2px 4px var(--tile-shadow),
     inset 0 0 0 1px rgba(255, 255, 255, 0.5);
 }
 
 .tile.selected {
-  background: #2d2d2d;
-  color: #ffffff;
-  border-color: #1a1a1a;
+  background: var(--ink-dark);
+  color: var(--paper-light);
+  border-color: var(--ink-black);
   transform: scale(1.05);
   box-shadow:
-    2px 2px 4px rgba(0, 0, 0, 0.3),
+    2px 2px 4px var(--tile-shadow),
     inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .submit-btn {
   width: 100%;
   padding: 1rem;
-  background: #4caf50;
-  color: white;
+  background: var(--accent-primary);
+  color: var(--paper-light);
   border: none;
   border-radius: 8px;
   font-size: 1.1rem;
   cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: var(--accent-primary-hover);
+}
+
+@media (min-width: 640px) {
+  .submit-btn {
+    max-width: 300px;
+    margin: 0 auto;
+    display: block;
+  }
 }
 
 .submit-btn:disabled {
@@ -666,31 +802,49 @@ function getPlayerNickname(playerId: string): string {
 }
 
 .submissions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: grid;
+  gap: 0.75rem;
   margin-top: 1rem;
 }
 
+@media (min-width: 768px) {
+  .submissions-list {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .submissions-list {
+    gap: 1.25rem;
+  }
+}
+
 .submission-card {
-  padding: 1.5rem;
-  background: #f5f5dc;
-  border: 2px solid #8b7355;
+  padding: 1.25rem;
+  background: var(--card-bg);
+  border: 2px solid var(--card-border);
   border-radius: 4px;
-  font-size: 1.1rem;
+  font-size: clamp(1rem, 3vw, 1.15rem);
   cursor: pointer;
   transition: all 0.2s;
-  font-family: 'Courier New', Courier, monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--ink-dark);
   text-transform: lowercase;
-  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.15);
+  box-shadow: 2px 2px 4px var(--tile-shadow);
+}
+
+@media (min-width: 640px) {
+  .submission-card {
+    padding: 1.5rem;
+  }
 }
 
 .submission-card:hover:not(.readonly) {
-  border-color: #5d4e37;
+  border-color: var(--accent-primary);
   transform: scale(1.02) rotate(-0.5deg);
-  box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.2);
+  box-shadow: 3px 3px 6px var(--tile-shadow);
 }
 
 .submission-card.readonly {
@@ -701,22 +855,40 @@ function getPlayerNickname(playerId: string): string {
   text-align: center;
 }
 
+.results-area h2 {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+}
+
 .winner-card {
-  background: linear-gradient(135deg, #ffd700 0%, #ffb347 100%);
-  padding: 2rem;
+  background: linear-gradient(135deg, var(--accent-tertiary) 0%, var(--accent-secondary) 100%);
+  padding: 1.5rem;
   border-radius: 12px;
   margin: 1rem 0;
+  border: 2px solid var(--accent-secondary);
+}
+
+@media (min-width: 640px) {
+  .winner-card {
+    padding: 2rem;
+    max-width: 600px;
+    margin: 1rem auto;
+  }
 }
 
 .winner-name {
-  font-size: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: clamp(1.25rem, 4vw, 1.5rem);
   font-weight: bold;
   margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .winner-answer {
-  font-size: 1.2rem;
-  font-family: 'Courier New', Courier, monospace;
+  font-size: clamp(1rem, 3vw, 1.25rem);
+  font-family: var(--font-mono);
   font-weight: 600;
   text-transform: lowercase;
 }
@@ -727,41 +899,54 @@ function getPlayerNickname(playerId: string): string {
 
 .all-submissions h3 {
   margin-bottom: 1rem;
+  text-transform: uppercase;
+  font-size: 1rem;
+  letter-spacing: 0.03em;
 }
 
 .submission-result {
-  padding: 0.75rem;
-  background: #f5f5dc;
-  border: 1px solid #d4c4a8;
+  padding: 0.75rem 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--paper-dark);
   border-radius: 4px;
   margin-bottom: 0.5rem;
   text-align: left;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .submission-result .answer {
-  font-family: 'Courier New', Courier, monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
   text-transform: lowercase;
 }
 
 .submission-result.winner {
-  background: #fff9c4;
-  border: 2px solid #ffd700;
+  background: var(--paper);
+  border: 2px solid var(--accent-tertiary);
 }
 
 .player-name {
-  font-weight: 500;
-  margin-right: 0.5rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
 }
 
 .advance-btn {
   padding: 1rem 2rem;
-  background: #4caf50;
-  color: white;
+  background: var(--accent-primary);
+  color: var(--paper-light);
   border: none;
   border-radius: 8px;
   font-size: 1.1rem;
   cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.advance-btn:hover:not(:disabled) {
+  background: var(--accent-primary-hover);
 }
 
 .advance-btn:disabled {
@@ -770,35 +955,62 @@ function getPlayerNickname(playerId: string): string {
 }
 
 .waiting-text {
+  font-family: var(--font-mono);
   opacity: 0.7;
   font-style: italic;
 }
 
 .game-over {
   text-align: center;
-  padding: 2rem;
+  padding: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .game-over {
+    padding: 2rem;
+  }
 }
 
 .game-over h1 {
-  font-size: 2.5rem;
+  font-size: clamp(2rem, 6vw, 3rem);
   margin-bottom: 2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .final-scores {
   margin-bottom: 2rem;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .final-score {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 1rem;
   background: var(--color-background-soft);
   border-radius: 8px;
   margin-bottom: 0.5rem;
+  font-family: var(--font-mono);
+}
+
+.final-score .name {
+  font-weight: 600;
+}
+
+.final-score .score {
+  font-weight: 600;
+}
+
+.final-score .rank {
+  font-size: 0.85rem;
+  text-transform: uppercase;
 }
 
 .final-score.winner {
-  background: linear-gradient(135deg, #ffd700 0%, #ffb347 100%);
+  background: linear-gradient(135deg, var(--accent-tertiary) 0%, var(--accent-secondary) 100%);
 }
 
 .leave-btn {
@@ -809,6 +1021,8 @@ function getPlayerNickname(playerId: string): string {
   border-radius: 8px;
   font-size: 1.1rem;
   cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .leave-game-btn {
@@ -816,12 +1030,19 @@ function getPlayerNickname(playerId: string): string {
   bottom: 1rem;
   right: 1rem;
   padding: 0.5rem 1rem;
-  background: #dc3545;
-  color: white;
+  background: var(--color-danger);
+  color: var(--paper-light);
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  z-index: 100;
+}
+
+.leave-game-btn:hover {
+  background: var(--color-danger-hover);
 }
 
 /* Overrule voting styles */
@@ -830,16 +1051,22 @@ function getPlayerNickname(playerId: string): string {
   text-align: center;
 }
 
+.overrule-section h2,
+.winner-voting-section h2 {
+  font-size: clamp(1.1rem, 3.5vw, 1.5rem);
+}
+
 .winner-card.self-pick {
-  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+  background: linear-gradient(135deg, var(--color-warning) 0%, var(--accent-secondary) 100%);
 }
 
 .winner-card.was-overruled {
-  background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+  background: linear-gradient(135deg, var(--color-success) 0%, var(--color-success-hover) 100%);
 }
 
 .overrule-note {
-  font-size: 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
   opacity: 0.9;
   margin-top: 0.5rem;
   font-style: italic;
@@ -847,27 +1074,48 @@ function getPlayerNickname(playerId: string): string {
 
 .voting-area {
   margin: 1.5rem 0;
-  padding: 1.5rem;
+  padding: 1.25rem;
   background: var(--color-background-soft);
   border-radius: 8px;
 }
 
+@media (min-width: 640px) {
+  .voting-area {
+    padding: 1.5rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
 .vote-prompt {
-  font-size: 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 1rem;
   font-weight: 500;
   margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .vote-note {
-  font-size: 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
   opacity: 0.7;
   margin-bottom: 1rem;
 }
 
 .vote-buttons {
   display: flex;
-  gap: 1rem;
-  justify-content: center;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (min-width: 480px) {
+  .vote-buttons {
+    flex-direction: row;
+    gap: 1rem;
+    justify-content: center;
+  }
 }
 
 .vote-btn {
@@ -877,6 +1125,14 @@ function getPlayerNickname(playerId: string): string {
   font-size: 1rem;
   cursor: pointer;
   transition: transform 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+@media (min-width: 480px) {
+  .vote-btn {
+    min-width: 140px;
+  }
 }
 
 .vote-btn:hover:not(:disabled) {
@@ -889,20 +1145,37 @@ function getPlayerNickname(playerId: string): string {
 }
 
 .vote-btn.overrule {
-  background: #dc3545;
-  color: white;
+  background: var(--color-danger);
+  color: var(--paper-light);
+}
+
+.vote-btn.overrule:hover:not(:disabled) {
+  background: var(--color-danger-hover);
 }
 
 .vote-btn.keep {
-  background: #4caf50;
-  color: white;
+  background: var(--color-success);
+  color: var(--paper-light);
+}
+
+.vote-btn.keep:hover:not(:disabled) {
+  background: var(--color-success-hover);
 }
 
 .prompt-reminder {
+  font-family: var(--font-mono);
   background: var(--color-background-soft);
   padding: 1rem;
   border-radius: 8px;
   margin: 1rem 0;
+}
+
+@media (min-width: 640px) {
+  .prompt-reminder {
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 
 .submission-card.vote-option {
@@ -913,40 +1186,54 @@ function getPlayerNickname(playerId: string): string {
 }
 
 .submission-author {
-  font-size: 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
   opacity: 0.7;
 }
 
 .submission-result.judge-self-pick {
-  border-left: 4px solid #ff9800;
+  border-left: 4px solid var(--color-warning);
 }
 
 .judge-badge {
-  font-size: 0.8rem;
-  background: #ff9800;
-  color: white;
-  padding: 0.1rem 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  background: var(--color-warning);
+  color: var(--ink-dark);
+  padding: 0.15rem 0.4rem;
   border-radius: 4px;
   margin-left: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 /* Timer and submission progress styles */
 .submission-status {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  padding: 1rem;
+  padding: 0.75rem;
   background: var(--color-background-soft);
   border-radius: 8px;
   margin-bottom: 1rem;
-  gap: 1rem;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .submission-status {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 1rem;
+    gap: 1rem;
+  }
 }
 
 .timer {
+  font-family: var(--font-mono);
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 1.5rem;
+  font-size: clamp(1.25rem, 4vw, 1.5rem);
   font-weight: bold;
   padding: 0.5rem 1rem;
   background: var(--color-background);
@@ -956,8 +1243,8 @@ function getPlayerNickname(playerId: string): string {
 }
 
 .timer.urgent {
-  background: #ffebee;
-  color: #c62828;
+  background: var(--color-danger-light);
+  color: var(--color-danger);
   animation: pulse 1s infinite;
 }
 
@@ -972,38 +1259,67 @@ function getPlayerNickname(playerId: string): string {
 }
 
 .timer-icon {
-  font-size: 1.2rem;
+  font-size: 1rem;
+}
+
+@media (min-width: 640px) {
+  .timer-icon {
+    font-size: 1.2rem;
+  }
 }
 
 .progress-indicator {
   flex: 1;
-  max-width: 300px;
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (min-width: 640px) {
+  .progress-indicator {
+    max-width: 300px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .progress-indicator {
+    max-width: 400px;
+  }
 }
 
 .progress-text {
+  font-family: var(--font-mono);
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
   text-align: center;
+  font-size: 0.85rem;
 }
 
 .progress-bar {
-  height: 12px;
+  height: 10px;
   background: var(--color-background);
-  border-radius: 6px;
+  border-radius: 5px;
   overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .progress-bar {
+    height: 12px;
+    border-radius: 6px;
+  }
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-primary-light));
   border-radius: 6px;
   transition: width 0.3s ease;
 }
 
 .progress-detail {
+  font-family: var(--font-mono);
   margin-top: 0.5rem;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   opacity: 0.8;
 }
 
@@ -1015,19 +1331,38 @@ function getPlayerNickname(playerId: string): string {
   border-radius: 8px;
 }
 
+@media (min-width: 640px) {
+  .vote-progress {
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
 .vote-progress-title {
+  font-family: var(--font-mono);
   font-weight: 600;
   margin-bottom: 0.75rem;
   text-align: center;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  letter-spacing: 0.03em;
 }
 
 .vote-progress-bar {
-  height: 24px;
+  height: 20px;
   background: var(--color-background);
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
   position: relative;
   margin-bottom: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .vote-progress-bar {
+    height: 24px;
+    border-radius: 12px;
+  }
 }
 
 .vote-progress-fill {
@@ -1038,29 +1373,32 @@ function getPlayerNickname(playerId: string): string {
 }
 
 .vote-progress-fill.for {
-  background: linear-gradient(90deg, #dc3545, #e57373);
+  background: linear-gradient(90deg, var(--color-danger), var(--color-danger-hover));
   left: 0;
 }
 
 .vote-progress-fill.against {
-  background: linear-gradient(90deg, #4caf50, #81c784);
+  background: linear-gradient(90deg, var(--color-success), var(--color-success-hover));
 }
 
 .vote-progress-labels {
+  font-family: var(--font-mono);
   display: flex;
   justify-content: space-between;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   margin-top: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .for-label {
-  color: #dc3545;
-  font-weight: 500;
+  color: var(--color-danger);
+  font-weight: 600;
 }
 
 .against-label {
-  color: #4caf50;
-  font-weight: 500;
+  color: var(--color-success);
+  font-weight: 600;
 }
 
 .pending-label {
@@ -1068,86 +1406,18 @@ function getPlayerNickname(playerId: string): string {
 }
 
 .vote-progress-note {
-  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
   text-align: center;
   opacity: 0.7;
   margin-top: 0.5rem;
   font-style: italic;
 }
 
-/* Mobile Responsiveness */
+/* Mobile Responsiveness - Bottom padding for fixed leave button */
 @media (max-width: 640px) {
   .game {
-    padding: 0.5rem;
-    padding-bottom: 70px; /* Space for fixed leave button */
-  }
-
-  .game-header {
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 0.75rem;
-  }
-
-  .round-info {
-    text-align: center;
-    font-size: 1.1rem;
-  }
-
-  .scores {
-    justify-content: center;
-    gap: 0.5rem;
-  }
-
-  .player-score {
-    font-size: 0.8rem;
-    padding: 0.2rem 0.4rem;
-  }
-
-  .prompt-card {
-    padding: 1.25rem;
-  }
-
-  .prompt-card h2 {
-    font-size: 1.2rem;
-  }
-
-  .submission-status {
-    flex-direction: column;
-    padding: 0.75rem;
-  }
-
-  .timer {
-    font-size: 1.3rem;
-    padding: 0.4rem 0.8rem;
-  }
-
-  .progress-indicator {
-    max-width: 100%;
-    width: 100%;
-  }
-
-  .tiles-grid {
-    padding: 0.75rem;
-    gap: 0.4rem;
-  }
-
-  .tile {
-    padding: 0.35rem 0.5rem;
-    font-size: 0.85rem;
-  }
-
-  .submission-card {
-    padding: 1rem;
-    font-size: 1rem;
-  }
-
-  .vote-buttons {
-    flex-direction: column;
-  }
-
-  .vote-btn {
-    width: 100%;
-    padding: 1rem;
+    padding-bottom: 70px;
   }
 
   .leave-game-btn {
@@ -1157,49 +1427,7 @@ function getPlayerNickname(playerId: string): string {
     right: 0;
     border-radius: 0;
     padding: 1rem;
-    font-size: 1rem;
-    z-index: 100;
-  }
-
-  .game-over h1 {
-    font-size: 2rem;
-  }
-
-  .final-score {
-    padding: 0.75rem;
-    font-size: 0.9rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .game {
-    padding: 0.25rem;
-    padding-bottom: 70px;
-  }
-
-  .prompt-card h2 {
-    font-size: 1.1rem;
-  }
-
-  .selected-preview {
-    padding: 1rem;
-    min-height: 60px;
-  }
-
-  .preview-text {
-    font-size: 1rem;
-  }
-
-  .winner-card {
-    padding: 1.25rem;
-  }
-
-  .winner-name {
-    font-size: 1.2rem;
-  }
-
-  .winner-answer {
-    font-size: 1rem;
+    font-size: 0.95rem;
   }
 }
 </style>

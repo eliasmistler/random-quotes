@@ -103,42 +103,76 @@ const canStartGame = () => {
 .lobby {
   max-width: 600px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem;
+  animation: fadeInUp 0.4s var(--animation-smooth);
+}
+
+@media (min-width: 640px) {
+  .lobby {
+    padding: 2rem;
+    max-width: 680px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lobby {
+    max-width: 760px;
+  }
 }
 
 h1 {
   text-align: center;
   margin-bottom: 2rem;
+  text-transform: uppercase;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  letter-spacing: 0.05em;
 }
 
 .invite-section {
   background: var(--color-background-soft);
-  padding: 1.5rem;
+  padding: 1.25rem;
   border-radius: 8px;
   margin-bottom: 2rem;
   text-align: center;
+  border: 1px solid var(--color-border);
+}
+
+@media (min-width: 640px) {
+  .invite-section {
+    padding: 1.5rem;
+  }
 }
 
 .invite-section h2 {
   margin-bottom: 1rem;
-  font-size: 1.2rem;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .invite-code {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 480px) {
+  .invite-code {
+    gap: 1rem;
+  }
 }
 
 .code {
-  font-size: 2rem;
+  font-size: clamp(1.5rem, 5vw, 2.25rem);
   font-weight: bold;
   letter-spacing: 0.3rem;
-  font-family: monospace;
+  font-family: var(--font-mono);
   padding: 0.5rem 1rem;
   background: var(--color-background);
   border-radius: 4px;
+  border: 2px dashed var(--color-border);
 }
 
 .copy-btn {
@@ -148,6 +182,8 @@ h1 {
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  text-transform: uppercase;
+  font-size: 0.85rem;
 }
 
 .copy-btn:hover {
@@ -155,13 +191,14 @@ h1 {
 }
 
 .copy-btn.copied {
-  background: #4caf50;
-  color: white;
+  background: var(--color-success);
+  color: var(--paper-light);
 }
 
 .invite-hint {
+  font-family: var(--font-mono);
   margin-top: 1rem;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   opacity: 0.7;
 }
 
@@ -171,11 +208,23 @@ h1 {
 
 .players-section h2 {
   margin-bottom: 1rem;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .players-list {
   list-style: none;
   padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .players-list {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
 }
 
 .player-item {
@@ -185,75 +234,102 @@ h1 {
   padding: 0.75rem 1rem;
   background: var(--color-background-soft);
   border-radius: 4px;
-  margin-bottom: 0.5rem;
+  border: 1px solid var(--color-border);
 }
 
 .player-name {
   flex: 1;
+  font-family: var(--font-mono);
+  font-weight: 600;
 }
 
 .host-badge,
 .you-badge {
-  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
   padding: 0.2rem 0.5rem;
   border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .host-badge {
-  background: #ffd700;
-  color: #000;
+  background: var(--accent-tertiary);
+  color: var(--ink-dark);
 }
 
 .you-badge {
-  background: #4caf50;
-  color: #fff;
+  background: var(--accent-primary);
+  color: var(--paper-light);
 }
 
 .actions {
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+@media (min-width: 480px) {
+  .actions {
+    flex-direction: row;
+    justify-content: center;
+    gap: 1rem;
+  }
 }
 
 .leave-btn {
   padding: 0.75rem 2rem;
-  background: #dc3545;
-  color: white;
+  background: var(--color-danger);
+  color: var(--paper-light);
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  width: 100%;
+  max-width: 200px;
 }
 
 .leave-btn:hover {
-  background: #c82333;
+  background: var(--color-danger-hover);
 }
 
 .error-message {
-  background: #ffebee;
-  color: #c62828;
+  font-family: var(--font-mono);
+  background: var(--color-danger-light);
+  color: var(--color-danger);
   padding: 0.75rem;
   border-radius: 4px;
   margin-bottom: 1rem;
+  border: 1px solid var(--color-danger);
 }
 
 .min-players-hint {
-  color: #ff9800;
-  font-size: 0.9rem;
+  font-family: var(--font-mono);
+  color: var(--color-warning);
+  font-size: 0.85rem;
   margin-bottom: 0.5rem;
 }
 
 .start-btn {
   padding: 1rem 2rem;
-  background: #4caf50;
-  color: white;
+  background: var(--accent-primary);
+  color: var(--paper-light);
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 1.1rem;
-  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  width: 100%;
+  max-width: 200px;
 }
 
 .start-btn:hover:not(:disabled) {
-  background: #43a047;
+  background: var(--accent-primary-hover);
 }
 
 .start-btn:disabled {
@@ -262,6 +338,7 @@ h1 {
 }
 
 .waiting-text {
+  font-family: var(--font-mono);
   margin-bottom: 1rem;
   opacity: 0.7;
   font-style: italic;
