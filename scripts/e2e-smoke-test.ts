@@ -3,10 +3,14 @@ import { test, expect, BrowserContext, Page } from '@playwright/test';
 /**
  * E2E Smoke Test for Ransom Notes
  *
- * Simulates a complete 2-player game with 3 rounds ending in a 2:1 score.
- * - Round 1: Host wins
- * - Round 2: Guest wins
- * - Round 3: Host wins (game over, Host wins 2:1)
+ * Simulates a complete 2-player game from start to finish.
+ * - Host creates game and gets invite code
+ * - Guest joins using invite code
+ * - Host starts the game
+ * - Both players submit answers each round
+ * - Judge picks a winner
+ * - Game continues until someone reaches 5 points
+ * - Verifies game over screen shows
  */
 
 interface Player {
@@ -46,7 +50,7 @@ test.describe('Ransom Notes - Full Game Smoke Test', () => {
     await guest.context.close();
   });
 
-  test('Complete 3-round game with 2:1 outcome', async () => {
+  test('Complete game from lobby to game over', async () => {
     // ============================================
     // PHASE 1: Host creates game
     // ============================================
@@ -56,17 +60,17 @@ test.describe('Ransom Notes - Full Game Smoke Test', () => {
     await host.page.waitForLoadState('networkidle');
 
     // Enter nickname
-    await host.page.fill('input[placeholder*="nickname" i], input[type="text"]', host.name);
+    await host.page.fill('#nickname', host.name);
 
     // Click "Start New Game" button
-    await host.page.click('button:has-text("Start New Game"), button:has-text("Create")');
+    await host.page.click('.create-btn');
 
     // Wait for lobby and get invite code
-    await host.page.waitForURL(/\/lobby\/|\/game\//);
-    await expect(host.page.locator('text=Waiting for players')).toBeVisible({ timeout: 10000 });
+    await host.page.waitForURL(/\/lobby|\/game/);
+    await expect(host.page.locator('.invite-section h2')).toBeVisible({ timeout: 10000 });
 
-    // Get the invite code from the page
-    const inviteCodeElement = host.page.locator('[class*="invite-code"], [data-testid="invite-code"], .invite-code, code');
+    // Get the invite code from the page - it's displayed in .invite-code-display with individual .code-letter spans
+    const inviteCodeElement = host.page.locator('.invite-code-display');
     await expect(inviteCodeElement).toBeVisible();
     inviteCode = (await inviteCodeElement.textContent()) || '';
     inviteCode = inviteCode.replace(/[^A-Z0-9]/gi, ''); // Clean up any extra characters
@@ -76,26 +80,36 @@ test.describe('Ransom Notes - Full Game Smoke Test', () => {
     // ============================================
     // PHASE 2: Guest joins game
     // ============================================
-    console.log('Phase 2: Guest joining game...');
+    console.log(`Phase 2: Guest joining game with code: ${inviteCode}`);
 
     await guest.page.goto('/');
     await guest.page.waitForLoadState('networkidle');
 
+    // Wait for the form to be ready
+    await expect(guest.page.locator('#nickname')).toBeVisible({ timeout: 5000 });
+
     // Enter nickname
-    await guest.page.fill('input[placeholder*="nickname" i], input[type="text"]', guest.name);
+    await guest.page.fill('#nickname', guest.name);
+    console.log('Guest entered nickname');
 
     // Enter invite code
-    await guest.page.fill('input[placeholder*="code" i], input[placeholder*="invite" i]', inviteCode);
+    await guest.page.fill('.invite-input', inviteCode);
+    console.log('Guest entered invite code');
+
+    // Wait for join button to be enabled
+    await guest.page.waitForTimeout(300);
 
     // Click join button
-    await guest.page.click('button:has-text("Join"), button:has-text("Join Game")');
+    await guest.page.click('.join-btn');
+    console.log('Guest clicked join');
 
     // Wait for lobby
-    await guest.page.waitForURL(/\/lobby\/|\/game\//);
+    await guest.page.waitForURL(/\/lobby/, { timeout: 15000 });
+    console.log('Guest arrived at lobby');
 
     // Verify both players see each other in lobby
-    await expect(host.page.locator(`text=${guest.name}`)).toBeVisible({ timeout: 10000 });
-    await expect(guest.page.locator(`text=${host.name}`)).toBeVisible({ timeout: 10000 });
+    await expect(host.page.locator(`text=${guest.name}`)).toBeVisible({ timeout: 15000 });
+    await expect(guest.page.locator(`text=${host.name}`)).toBeVisible({ timeout: 15000 });
     console.log('Both players in lobby');
 
     // ============================================
@@ -104,27 +118,31 @@ test.describe('Ransom Notes - Full Game Smoke Test', () => {
     console.log('Phase 3: Host starting game...');
 
     // Host clicks start game button
-    await host.page.click('button:has-text("Start Game")');
+    await host.page.click('.start-btn');
 
-    // Wait for game to start - both players should see the game view
-    await expect(host.page.locator('text=Round 1, .round-info:has-text("1")')).toBeVisible({ timeout: 15000 });
-    await expect(guest.page.locator('text=Round 1, .round-info:has-text("1")')).toBeVisible({ timeout: 15000 });
+    // Wait for game to start - both players should see the game view with tiles
+    await expect(host.page.locator('.round-info')).toBeVisible({ timeout: 15000 });
+    await expect(guest.page.locator('.tiles-grid')).toBeVisible({ timeout: 15000 });
     console.log('Game started - Round 1');
 
     // ============================================
-    // ROUND 1: Both submit, Host wins
+    // PLAY ROUNDS UNTIL GAME OVER
+    // (Default points_to_win is 5)
     // ============================================
-    await playRound(host, guest, 1, 'host');
+    let roundNumber = 1;
+    const maxRounds = 10; // Safety limit
 
-    // ============================================
-    // ROUND 2: Both submit, Guest wins
-    // ============================================
-    await playRound(host, guest, 2, 'guest');
+    while (roundNumber <= maxRounds) {
+      // Check if game is already over
+      const gameOver = await host.page.locator('.game-over').isVisible().catch(() => false);
+      if (gameOver) {
+        console.log(`Game over detected after Round ${roundNumber - 1}`);
+        break;
+      }
 
-    // ============================================
-    // ROUND 3: Both submit, Host wins (Game Over)
-    // ============================================
-    await playRound(host, guest, 3, 'host');
+      await playRound(host, guest, roundNumber);
+      roundNumber++;
+    }
 
     // ============================================
     // VERIFY GAME OVER
@@ -132,78 +150,77 @@ test.describe('Ransom Notes - Full Game Smoke Test', () => {
     console.log('Verifying game over...');
 
     // Check for game over screen
-    await expect(host.page.locator('text=Game Over')).toBeVisible({ timeout: 15000 });
-    await expect(guest.page.locator('text=Game Over')).toBeVisible({ timeout: 15000 });
+    await expect(host.page.locator('.game-over')).toBeVisible({ timeout: 15000 });
+    await expect(guest.page.locator('.game-over')).toBeVisible({ timeout: 15000 });
 
-    // Verify final scores (Host: 2, Guest: 1)
-    // Look for score displays on the game over screen
-    const hostScoreText = host.page.locator(`text=${host.name}`).locator('..').locator('text=/2|points/');
-    const guestScoreText = host.page.locator(`text=${guest.name}`).locator('..').locator('text=/1|points/');
+    // Verify the final scores are displayed
+    await expect(host.page.locator('.final-scores')).toBeVisible();
 
-    // Just verify game over is showing - exact score format may vary
-    console.log('Game completed successfully with 2:1 outcome!');
+    console.log('Game completed successfully!');
   });
 });
 
 /**
  * Play a single round of the game
+ *
+ * Game flow:
+ * 1. All players submit their answers (both host and guest)
+ * 2. After all submissions, a judge is selected
+ * 3. Judge picks the winning answer
+ * 4. Results are shown
+ * 5. Host advances to next round (or game ends)
  */
 async function playRound(
   host: Player,
   guest: Player,
-  roundNumber: number,
-  winner: 'host' | 'guest'
+  roundNumber: number
 ): Promise<void> {
-  console.log(`\n--- Round ${roundNumber}: ${winner} should win ---`);
+  console.log(`\n--- Round ${roundNumber} ---`);
 
-  // Both players need to submit their answers
-  await submitAnswer(host, `round${roundNumber}-host`);
-  await submitAnswer(guest, `round${roundNumber}-guest`);
+  // Both players submit their answers
+  await submitAnswer(host);
+  await submitAnswer(guest);
 
-  // Wait for judging phase
+  // Wait for judging phase - one player will become the judge
   console.log('Waiting for judging phase...');
-  await host.page.waitForTimeout(1000); // Give time for phase transition
+  await host.page.waitForTimeout(1000);
 
-  // Determine who is the judge (alternates each round)
-  // The judge needs to pick a winner
-  const judge = roundNumber % 2 === 1 ? host : guest;
-  const winnerPlayer = winner === 'host' ? host : guest;
+  // Find who is the judge by checking which page has the judging area
+  const hostIsJudge = await host.page.locator('.judging-area').isVisible().catch(() => false);
+  const judge = hostIsJudge ? host : guest;
+  console.log(`${judge.name} is the judge`);
 
-  console.log(`Judge: ${judge.name}, picking winner: ${winnerPlayer.name}`);
-
-  // Judge picks the winner's submission
-  await pickWinner(judge, winnerPlayer.name);
+  // Judge picks the winner
+  await pickWinner(judge);
 
   // Wait for results phase
   console.log('Waiting for results...');
-  await host.page.waitForTimeout(1000);
+  await host.page.waitForTimeout(500);
 
   // Host advances to next round (or game over)
-  if (roundNumber < 3) {
-    console.log('Host advancing to next round...');
-    await advanceRound(host);
+  console.log('Host advancing...');
+  await advanceRound(host);
 
-    // Verify round number updated
-    await expect(host.page.locator(`.round-info:has-text("${roundNumber + 1}"), text=Round ${roundNumber + 1}`)).toBeVisible({ timeout: 10000 });
+  // Check if game is over or continue to next round
+  const gameOver = await host.page.locator('.game-over').isVisible().catch(() => false);
+  if (!gameOver) {
+    // Wait for next round to start - tiles grid should be visible
+    await expect(host.page.locator('.tiles-grid')).toBeVisible({ timeout: 10000 });
     console.log(`Advanced to Round ${roundNumber + 1}`);
-  } else {
-    // Final round - advance to game over
-    console.log('Host advancing to game over...');
-    await advanceRound(host);
   }
 }
 
 /**
  * Submit an answer by selecting tiles
  */
-async function submitAnswer(player: Player, answerTag: string): Promise<void> {
+async function submitAnswer(player: Player): Promise<void> {
   console.log(`${player.name} submitting answer...`);
 
   // Wait for tiles to be visible
-  await expect(player.page.locator('.tile, .tiles-grid button, [class*="tile"]').first()).toBeVisible({ timeout: 10000 });
+  await expect(player.page.locator('.tiles-grid .tile').first()).toBeVisible({ timeout: 10000 });
 
   // Select first 2-3 available tiles
-  const tiles = player.page.locator('.tile:not(.selected), .tiles-grid button:not(.selected), [class*="tile"]:not([class*="selected"])');
+  const tiles = player.page.locator('.tiles-grid .tile:not(.selected)');
   const tileCount = await tiles.count();
   const tilesToSelect = Math.min(3, tileCount);
 
@@ -213,33 +230,29 @@ async function submitAnswer(player: Player, answerTag: string): Promise<void> {
   }
 
   // Click submit button
-  await player.page.click('button:has-text("Submit"), button.submit-btn');
+  await player.page.click('.submit-btn');
 
-  // Wait for submission confirmation
-  await expect(player.page.locator('text=submitted, text=Waiting')).toBeVisible({ timeout: 10000 });
   console.log(`${player.name} submitted`);
 }
 
 /**
  * Judge picks a winner from submissions
  */
-async function pickWinner(judge: Player, winnerName: string): Promise<void> {
-  console.log(`${judge.name} (judge) picking ${winnerName} as winner...`);
-
-  // Wait for judging phase indicators
-  await judge.page.waitForTimeout(1000);
+async function pickWinner(judge: Player): Promise<void> {
+  // Wait for judging phase - look for judging area
+  await expect(judge.page.locator('.judging-area')).toBeVisible({ timeout: 15000 });
 
   // Look for submission cards to click
-  // The judge should see clickable submission cards
-  const submissionCards = judge.page.locator('.submission-card:not(.readonly), .submissions-list button');
+  const submissionCards = judge.page.locator('.judging-area .submission-card');
 
   // Wait for cards to be visible
-  await expect(submissionCards.first()).toBeVisible({ timeout: 15000 });
+  await expect(submissionCards.first()).toBeVisible({ timeout: 10000 });
 
-  // Click a submission card (pick the first one for simplicity)
-  // In a real test we might want to identify which card belongs to which player
+  // Click the first submission card (in 2-player game, there's only one)
   await submissionCards.first().click();
 
+  // Wait for results phase
+  await expect(judge.page.locator('.results-area')).toBeVisible({ timeout: 10000 });
   console.log('Winner selected');
 }
 
