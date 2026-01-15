@@ -108,7 +108,7 @@ log_info "Frontend HTML check passed!"
 log_info "Testing game creation API..."
 CREATE_RESPONSE=$(curl -s -X POST http://localhost:8000/api/games \
     -H "Content-Type: application/json" \
-    -d '{"nickname": "SmokeTestPlayer"}')
+    -d '{"host_nickname": "SmokeTestPlayer"}')
 
 if ! echo "$CREATE_RESPONSE" | grep -q "game_id"; then
     log_error "Game creation failed: $CREATE_RESPONSE"
