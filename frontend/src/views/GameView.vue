@@ -217,34 +217,40 @@ function getPlayerNickname(playerId: string): string {
       </div>
 
       <div v-else class="submission-area">
-        <p class="instruction">Select tiles to create your answer:</p>
+        <div class="submission-layout">
+          <div class="submission-controls">
+            <p class="instruction">Select tiles to create your answer:</p>
 
-        <div class="selected-preview">
-          <span v-if="selectedTiles.length === 0" class="placeholder">
-            Click tiles below to build your answer
-          </span>
-          <span v-else class="preview-text">{{ selectedTiles.join(' ') }}</span>
+            <div class="selected-preview">
+              <span v-if="selectedTiles.length === 0" class="placeholder">
+                Click tiles below to build your answer
+              </span>
+              <span v-else class="preview-text">{{ selectedTiles.join(' ') }}</span>
+            </div>
+
+            <button
+              class="submit-btn"
+              :disabled="selectedTiles.length === 0 || gameStore.isLoading"
+              @click="handleSubmit"
+            >
+              {{ gameStore.isLoading ? 'Submitting...' : 'Submit Answer' }}
+            </button>
+          </div>
+
+          <div class="tiles-section">
+            <div class="tiles-grid">
+              <button
+                v-for="(tile, index) in gameStore.myTiles"
+                :key="index"
+                class="tile"
+                :class="{ selected: selectedTiles.includes(tile) }"
+                @click="toggleTile(tile)"
+              >
+                {{ tile }}
+              </button>
+            </div>
+          </div>
         </div>
-
-        <div class="tiles-grid">
-          <button
-            v-for="(tile, index) in gameStore.myTiles"
-            :key="index"
-            class="tile"
-            :class="{ selected: selectedTiles.includes(tile) }"
-            @click="toggleTile(tile)"
-          >
-            {{ tile }}
-          </button>
-        </div>
-
-        <button
-          class="submit-btn"
-          :disabled="selectedTiles.length === 0 || gameStore.isLoading"
-          @click="handleSubmit"
-        >
-          {{ gameStore.isLoading ? 'Submitting...' : 'Submit Answer' }}
-        </button>
       </div>
     </div>
 
@@ -500,14 +506,20 @@ function getPlayerNickname(playerId: string): string {
 
 @media (min-width: 1024px) {
   .game {
-    max-width: 1000px;
+    max-width: 1200px;
     padding: 1.5rem;
   }
 }
 
 @media (min-width: 1280px) {
   .game {
-    max-width: 1100px;
+    max-width: 1400px;
+  }
+}
+
+@media (min-width: 1536px) {
+  .game {
+    max-width: 1600px;
   }
 }
 
@@ -647,6 +659,54 @@ function getPlayerNickname(playerId: string): string {
   }
 }
 
+/* Submission layout - split view on large screens */
+.submission-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .submission-layout {
+    flex-direction: row;
+    gap: 2rem;
+  }
+
+  .submission-controls {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .tiles-section {
+    flex: 2;
+    min-width: 0;
+  }
+}
+
+@media (min-width: 1280px) {
+  .submission-layout {
+    gap: 2.5rem;
+  }
+}
+
+.submission-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .submission-controls {
+    position: sticky;
+    top: 1rem;
+    align-self: flex-start;
+  }
+
+  .submission-controls .submit-btn {
+    max-width: none;
+  }
+}
+
 .instruction {
   font-family: var(--font-mono);
   margin-bottom: 1rem;
@@ -654,6 +714,12 @@ function getPlayerNickname(playerId: string): string {
   text-transform: uppercase;
   font-size: 0.9rem;
   letter-spacing: 0.03em;
+}
+
+@media (min-width: 1024px) {
+  .instruction {
+    margin-bottom: 0;
+  }
 }
 
 .selected-preview {
@@ -722,9 +788,10 @@ function getPlayerNickname(playerId: string): string {
 
 .tile {
   padding: 0.35rem 0.5rem;
-  background: var(--tile-bg);
-  color: var(--ink-dark);
-  border: 1px solid var(--tile-border);
+  /* Always white background with black text for readability */
+  background: #ffffff;
+  color: #1a1814;
+  border: 1px solid #c4b8a4;
   border-radius: 2px;
   cursor: pointer;
   transition: all 0.15s;
@@ -732,7 +799,7 @@ function getPlayerNickname(playerId: string): string {
   font-weight: 600;
   font-size: clamp(0.8rem, 2.5vw, 0.95rem);
   box-shadow:
-    1px 1px 2px var(--tile-shadow),
+    1px 1px 2px rgba(45, 42, 36, 0.15),
     inset 0 0 0 1px rgba(255, 255, 255, 0.5);
   text-transform: lowercase;
 }
@@ -753,17 +820,18 @@ function getPlayerNickname(playerId: string): string {
 .tile:hover {
   transform: scale(1.05) rotate(-1deg);
   box-shadow:
-    2px 2px 4px var(--tile-shadow),
+    2px 2px 4px rgba(45, 42, 36, 0.2),
     inset 0 0 0 1px rgba(255, 255, 255, 0.5);
 }
 
 .tile.selected {
-  background: var(--ink-dark);
-  color: var(--paper-light);
-  border-color: var(--ink-black);
+  /* Selected tiles: dark background with white text */
+  background: #2d2a24;
+  color: #ffffff;
+  border-color: #1a1814;
   transform: scale(1.05);
   box-shadow:
-    2px 2px 4px var(--tile-shadow),
+    2px 2px 4px rgba(45, 42, 36, 0.25),
     inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 

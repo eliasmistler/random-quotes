@@ -66,6 +66,24 @@ ransom-notes/
   chrome --remote-debugging-port=9222 --user-data-dir="path/to/debug-profile"
   ```
 
+### Manual Testing & Browser Automation
+
+**Always use Docker Compose for manual testing or Chrome MCP testing.** This ensures consistent environments and avoids port conflicts between agent worktrees.
+
+```bash
+# From any worktree directory
+docker-compose up --build
+
+# Frontend: http://localhost:80
+# Backend API: http://localhost:8000
+```
+
+Using Docker Compose provides:
+- Consistent port mappings across all agents
+- Production-like environment
+- No need to install dependencies locally in each worktree
+- Proper nginx configuration for frontend/backend routing
+
 ## Development
 
 ### Backend Commands
@@ -100,74 +118,81 @@ npm run format             # Run Prettier
 
 ## Multi-Agent Workflow
 
-This project uses a multi-agent setup where multiple Claude agents may work concurrently. Follow this branching workflow for all feature work:
+This project uses **git worktrees** for multi-agent development, allowing multiple Claude agents to work concurrently in isolated directories without conflicts.
 
-### Branch Naming Convention
+### Directory Structure
 
-Create branches with the format: `<agent-name>/<feature-name>`
+Each agent works in its own worktree directory:
 
-Examples:
-- `claude-1/add-user-authentication`
-- `claude-2/fix-websocket-reconnect`
-- `opus/implement-game-timer`
+```
+PycharmProjects/
+├── ransom-notes/              # Main repo (master branch)
+├── ransom-notes-agent1/       # Agent 1's worktree
+├── ransom-notes-agent2/       # Agent 2's worktree
+└── ransom-notes-agent3/       # Agent 3's worktree
+```
 
-### Workflow Steps
+### Setting Up a New Agent Worktree
 
-**At the start of any feature work:**
+From the main repo directory (`ransom-notes/`):
 
-1. **Ensure you're on master and up to date:**
+```bash
+# Create a new branch and worktree for an agent
+git worktree add ../ransom-notes-<agent-name> -b ransom-notes-<agent-name>
+
+# Example for agent2:
+git worktree add ../ransom-notes-agent2 -b ransom-notes-agent2
+```
+
+### Agent Workflow
+
+**As an agent, you should:**
+
+1. **Work in your assigned worktree directory:**
    ```bash
-   git checkout master
-   git pull origin master
+   cd ../ransom-notes-<agent-name>
    ```
 
-2. **Create and checkout a new feature branch:**
-   ```bash
-   git checkout -b <agent-name>/<feature-name>
-   ```
+2. **Make commits as needed** on your branch (each worktree has its own branch)
 
-**During development:**
+3. **When ready to ship (`/ship` command):**
+   - Run all tests
+   - Commit any remaining changes
+   - Pull latest from master and rebase:
+     ```bash
+     git fetch origin master
+     git rebase origin/master
+     ```
+   - Push your branch and create PR:
+     ```bash
+     git push -u origin ransom-notes-<agent-name>
+     gh pr create --fill --base master
+     gh pr merge --merge --delete-branch
+     ```
 
-3. **Make commits as needed** on your feature branch
-
-**When ready to ship (`/ship` command):**
-
-4. **Run all tests** to ensure nothing is broken
-
-5. **Commit any remaining changes** to your feature branch
-
-6. **Pull latest from master and rebase:**
+4. **After merging, reset your worktree to master:**
    ```bash
    git fetch origin master
-   git rebase origin/master
+   git reset --hard origin/master
    ```
 
-7. **Resolve any conflicts** if they occur, then continue the rebase
+### Removing a Worktree
 
-8. **Push your branch to remote:**
-   ```bash
-   git push -u origin <agent-name>/<feature-name>
-   ```
+When an agent is no longer needed:
 
-9. **Create and merge the PR** (no approval needed):
-   ```bash
-   gh pr create --fill --base master
-   gh pr merge --merge --delete-branch
-   ```
-
-10. **Clean up locally:**
-    ```bash
-    git checkout master
-    git pull origin master
-    git branch -d <agent-name>/<feature-name>
-    ```
+```bash
+# From the main repo directory
+git worktree remove ../ransom-notes-<agent-name>
+git branch -d ransom-notes-<agent-name>
+```
 
 ### Important Notes
 
-- Always work on a feature branch, never directly on master
-- Keep feature branches short-lived to minimize merge conflicts
-- If conflicts occur during rebase, resolve them carefully and test again before pushing
-- The `--delete-branch` flag on `gh pr merge` removes the remote branch automatically
+- Each agent has its own isolated directory - no file conflicts between agents
+- Worktrees share the same `.git` database, so branches are visible across all worktrees
+- Always work in your assigned worktree, never directly on master in the main repo
+- Keep changes small and merge frequently to minimize rebase conflicts
+- The main `ransom-notes/` directory should stay on master for reference
 
 ### Code Style
 
