@@ -12,7 +12,7 @@
       "Bash(start http://*)",
       "Bash(start https://*)",
       "mcp__chrome-devtools__*",
-      "Skill(ship)",
+      "Skill",
       "WebFetch",
       "WebSearch",
       "Bash(terraform *)",
