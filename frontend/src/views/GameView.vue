@@ -357,7 +357,7 @@ function getPlayerNickname(playerId: string): string {
                 >
                   <span
                     class="tile answer-tile"
-                    :class="'tile-style-' + getTileStyleIndex(tile, index)"
+                    :class="'tile-style-' + getTileStyleIndex(tile)"
                     draggable="true"
                     @dragstart="handleDragStart($event, tile, 'answer')"
                     @dragend="handleDragEnd"
@@ -427,7 +427,7 @@ function getPlayerNickname(playerId: string): string {
                 v-for="(tile, tileIndex) in submission.tiles_used"
                 :key="tileIndex"
                 class="tile display-tile"
-                :class="'tile-style-' + getTileStyleIndex(tile, tileIndex)"
+                :class="'tile-style-' + getTileStyleIndex(tile)"
               >{{ tile }}</span>
             </div>
           </button>
@@ -448,7 +448,7 @@ function getPlayerNickname(playerId: string): string {
                 v-for="(tile, tileIndex) in submission.tiles_used"
                 :key="tileIndex"
                 class="tile display-tile"
-                :class="'tile-style-' + getTileStyleIndex(tile, tileIndex)"
+                :class="'tile-style-' + getTileStyleIndex(tile)"
               >{{ tile }}</span>
             </div>
           </div>
@@ -474,7 +474,7 @@ function getPlayerNickname(playerId: string): string {
                 )?.tiles_used ?? []"
                 :key="tileIndex"
                 class="tile display-tile"
-                :class="'tile-style-' + getTileStyleIndex(tile, tileIndex)"
+                :class="'tile-style-' + getTileStyleIndex(tile)"
               >{{ tile }}</span>
             </div>
           </div>
@@ -561,7 +561,7 @@ function getPlayerNickname(playerId: string): string {
                     v-for="(tile, tileIndex) in submission.tiles_used"
                     :key="tileIndex"
                     class="tile display-tile"
-                    :class="'tile-style-' + getTileStyleIndex(tile, tileIndex)"
+                    :class="'tile-style-' + getTileStyleIndex(tile)"
                   >{{ tile }}</span>
                 </div>
                 <span class="submission-author">- {{ getPlayerNickname(submission.player_id) }}</span>
@@ -596,7 +596,7 @@ function getPlayerNickname(playerId: string): string {
                 )?.tiles_used ?? []"
                 :key="tileIndex"
                 class="tile display-tile"
-                :class="'tile-style-' + getTileStyleIndex(tile, tileIndex)"
+                :class="'tile-style-' + getTileStyleIndex(tile)"
               >{{ tile }}</span>
             </div>
             <p v-if="gameStore.isOverruled" class="overrule-note">Chosen by player vote</p>
@@ -623,7 +623,7 @@ function getPlayerNickname(playerId: string): string {
                 v-for="(tile, tileIndex) in submission.tiles_used"
                 :key="tileIndex"
                 class="tile display-tile small"
-                :class="'tile-style-' + getTileStyleIndex(tile, tileIndex)"
+                :class="'tile-style-' + getTileStyleIndex(tile)"
               >{{ tile }}</span>
             </div>
             <span
