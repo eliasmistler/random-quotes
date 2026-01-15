@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(curl *)",
+      "Bash(docker *)",
+      "Bash(docker-compose *)",
+      "Bash(start http://*)",
+      "Bash(start https://*)",
+      "mcp__chrome-devtools__*",
+      "Skill(ship)",
+      "WebFetch",
+      "WebSearch"
+    ]
+  }
+}
