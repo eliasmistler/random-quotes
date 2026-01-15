@@ -1,0 +1,16 @@
+{
+  "name": "ransom-notes-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "e2e": "playwright test",
+    "e2e:headed": "HEADED=true playwright test",
+    "e2e:debug": "HEADED=true SLOWMO=500 playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@types/node": "^22.15.21",
+    "typescript": "^5.8.3"
+  }
+}

@@ -81,3 +81,9 @@ nul
 # Claude Code
 .claude/settings.local.json
 tmpclaude-*
+
+# E2E Testing (Playwright)
+scripts/node_modules/
+scripts/playwright-report/
+scripts/test-results/
+scripts/.playwright/
