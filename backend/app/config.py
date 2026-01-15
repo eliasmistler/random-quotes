@@ -1,5 +1,7 @@
 """Application configuration using Pydantic Settings."""
 
+from functools import cached_property
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,6 +17,16 @@ class Settings(BaseSettings):
     app_name: str = "Ransom Notes API"
     debug: bool = False
     api_prefix: str = "/api"
+
+    # CORS configuration (comma-separated list of origins)
+    cors_origins: str = "http://localhost:5173"
+
+    @cached_property
+    def cors_origins_list(self) -> list[str]:
+        """Parse CORS origins from comma-separated string."""
+        if self.cors_origins == "*":
+            return ["*"]
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 def get_settings() -> Settings:
