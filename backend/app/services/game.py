@@ -238,7 +238,7 @@ def select_winner(game: Game, winner_id: str) -> Game:
 
     Raises ValueError if not in judging phase or winner didn't submit.
     Tracks if the judge picked themselves (for potential overrule).
-    Skips directly to game over if the game is won (unless overrule voting is possible).
+    If the winner reaches the winning score, skips straight to GAME_OVER.
     """
     if game.phase != GamePhase.ROUND_JUDGING:
         raise ValueError("Not in judging phase")
@@ -262,31 +262,21 @@ def select_winner(game: Game, winner_id: str) -> Game:
     updated_winner = winner.model_copy(update={"score": winner.score + 1})
     updated_players = {**game.players, winner_id: updated_winner}
 
-    # Create the updated game to check game over condition
-    game_with_winner = game.model_copy(
+    updated_game = game.model_copy(
         update={
             "current_round": updated_round,
             "players": updated_players,
         }
     )
 
-    # Check if overrule voting is possible (judge picked themselves with 3+ players)
-    overrule_possible = judge_picked_self and len(game.players) >= 3
-
-    # If game is over and no overrule voting is possible, skip directly to game over
-    if check_game_over(game_with_winner) and not overrule_possible:
-        return game_with_winner.model_copy(
-            update={
-                "phase": GamePhase.GAME_OVER,
-                "round_history": [*game.round_history, updated_round],
-            }
+    # Check if game is over - skip round results and go straight to game over
+    if check_game_over(updated_game):
+        game_with_history = updated_game.model_copy(
+            update={"round_history": [*updated_game.round_history, updated_round]}
         )
+        return game_with_history.model_copy(update={"phase": GamePhase.GAME_OVER})
 
-    return game_with_winner.model_copy(
-        update={
-            "phase": GamePhase.ROUND_RESULTS,
-        }
-    )
+    return updated_game.model_copy(update={"phase": GamePhase.ROUND_RESULTS})
 
 
 def check_game_over(game: Game) -> bool:
