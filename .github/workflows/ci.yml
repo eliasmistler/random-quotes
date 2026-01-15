@@ -1,10 +1,14 @@
-name: CI
+name: CI/CD
 
 on:
   push:
     branches: [master]
   pull_request:
     branches: [master]
+
+env:
+  AWS_REGION: us-east-1
+  ECS_CLUSTER: ransom-notes-prod
 
 jobs:
   backend-tests:
@@ -37,8 +41,8 @@ jobs:
         working-directory: backend
         run: uv run ruff format --check .
 
-  frontend-build:
-    name: Frontend Build
+  frontend-tests:
+    name: Frontend Tests & Build
     runs-on: ubuntu-latest
 
     steps:
@@ -64,6 +68,88 @@ jobs:
         working-directory: frontend
         run: npm run type-check
 
+      - name: Run tests
+        working-directory: frontend
+        run: npm run test
+
       - name: Build
         working-directory: frontend
         run: npm run build
+
+  build-and-deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/ransom-notes-backend:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/ransom-notes-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/ransom-notes-frontend:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/ransom-notes-frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VITE_API_BASE_URL=/api
+            VITE_WS_HOST=
+
+      - name: Deploy backend to ECS
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service backend \
+            --force-new-deployment
+
+      - name: Deploy frontend to ECS
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service frontend \
+            --force-new-deployment
+
+      - name: Wait for backend deployment
+        run: |
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services backend
+
+      - name: Wait for frontend deployment
+        run: |
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services frontend
