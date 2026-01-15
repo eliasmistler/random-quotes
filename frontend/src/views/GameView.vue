@@ -1074,4 +1074,132 @@ function getPlayerNickname(playerId: string): string {
   margin-top: 0.5rem;
   font-style: italic;
 }
+
+/* Mobile Responsiveness */
+@media (max-width: 640px) {
+  .game {
+    padding: 0.5rem;
+    padding-bottom: 70px; /* Space for fixed leave button */
+  }
+
+  .game-header {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .round-info {
+    text-align: center;
+    font-size: 1.1rem;
+  }
+
+  .scores {
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .player-score {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.4rem;
+  }
+
+  .prompt-card {
+    padding: 1.25rem;
+  }
+
+  .prompt-card h2 {
+    font-size: 1.2rem;
+  }
+
+  .submission-status {
+    flex-direction: column;
+    padding: 0.75rem;
+  }
+
+  .timer {
+    font-size: 1.3rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .progress-indicator {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .tiles-grid {
+    padding: 0.75rem;
+    gap: 0.4rem;
+  }
+
+  .tile {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .submission-card {
+    padding: 1rem;
+    font-size: 1rem;
+  }
+
+  .vote-buttons {
+    flex-direction: column;
+  }
+
+  .vote-btn {
+    width: 100%;
+    padding: 1rem;
+  }
+
+  .leave-game-btn {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-radius: 0;
+    padding: 1rem;
+    font-size: 1rem;
+    z-index: 100;
+  }
+
+  .game-over h1 {
+    font-size: 2rem;
+  }
+
+  .final-score {
+    padding: 0.75rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .game {
+    padding: 0.25rem;
+    padding-bottom: 70px;
+  }
+
+  .prompt-card h2 {
+    font-size: 1.1rem;
+  }
+
+  .selected-preview {
+    padding: 1rem;
+    min-height: 60px;
+  }
+
+  .preview-text {
+    font-size: 1rem;
+  }
+
+  .winner-card {
+    padding: 1.25rem;
+  }
+
+  .winner-name {
+    font-size: 1.2rem;
+  }
+
+  .winner-answer {
+    font-size: 1rem;
+  }
+}
 </style>
