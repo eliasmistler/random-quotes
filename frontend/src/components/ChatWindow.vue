@@ -330,7 +330,7 @@ watch(isOpen, (open) => {
 
 .no-messages {
   font-family: var(--font-typewriter);
-  color: var(--ink-grey);
+  color: var(--color-text-muted);
   font-style: italic;
   text-align: center;
   padding: 2rem 1rem;
@@ -377,7 +377,7 @@ watch(isOpen, (open) => {
 .message-time {
   font-family: var(--font-typewriter);
   font-size: 0.65rem;
-  color: var(--ink-grey);
+  color: var(--color-text-muted);
 }
 
 .message-text {
@@ -414,7 +414,7 @@ watch(isOpen, (open) => {
 }
 
 .chat-input::placeholder {
-  color: var(--ink-grey);
+  color: var(--color-text-muted);
 }
 
 .send-btn {

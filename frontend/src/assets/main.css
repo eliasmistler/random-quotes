@@ -172,7 +172,7 @@ select:focus {
 
 input::placeholder,
 textarea::placeholder {
-  color: var(--ink-grey);
+  color: var(--color-text-muted);
   font-style: italic;
 }
 

@@ -215,7 +215,7 @@ async function handleAddBot() {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-bottom: 1rem;
-  color: var(--ink-grey);
+  color: var(--color-text-muted);
 }
 
 .invite-code-display {
@@ -285,7 +285,7 @@ async function handleAddBot() {
 .invite-hint {
   font-family: var(--font-typewriter);
   font-size: 0.8rem;
-  color: var(--ink-grey);
+  color: var(--color-text-muted);
 }
 
 /* ==========================================================================
