@@ -531,7 +531,7 @@ const notesLetters: RansomLetter[] = [
 .divider-text {
   font-family: var(--font-typewriter);
   font-size: 0.75rem;
-  color: var(--ink-grey);
+  color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   white-space: nowrap;
@@ -728,7 +728,7 @@ const notesLetters: RansomLetter[] = [
   font-family: var(--font-typewriter);
   text-align: center;
   font-size: 0.9rem;
-  color: var(--ink-grey);
+  color: var(--color-text-muted);
   margin-bottom: 1.5rem;
   letter-spacing: 0.1em;
 }

@@ -848,7 +848,7 @@ function getPlayerNickname(playerId: string): string {
 
 .judge-info {
   font-family: var(--font-typewriter);
-  color: var(--ink-grey);
+  color: var(--color-text-muted);
   font-size: 0.85rem;
 }
 
@@ -931,7 +931,7 @@ function getPlayerNickname(playerId: string): string {
 }
 
 .progress-detail {
-  color: var(--ink-grey);
+  color: var(--color-text-muted);
   margin-top: 0.5rem;
 }
 
@@ -983,7 +983,7 @@ function getPlayerNickname(playerId: string): string {
 .instruction-hint {
   font-family: var(--font-typewriter);
   font-size: 0.75rem;
-  color: var(--ink-grey);
+  color: var(--color-text-muted);
   margin-top: 0.25rem;
 }
 
@@ -1066,7 +1066,7 @@ function getPlayerNickname(playerId: string): string {
 }
 
 .placeholder {
-  color: var(--ink-grey);
+  color: var(--color-text-muted);
   font-style: italic;
   font-family: var(--font-typewriter);
   text-align: center;
@@ -1181,7 +1181,7 @@ function getPlayerNickname(playerId: string): string {
 
 .submission-author {
   font-size: 0.8rem;
-  color: var(--ink-grey);
+  color: var(--color-text-muted);
   font-weight: 400;
 }
 
@@ -1265,7 +1265,7 @@ function getPlayerNickname(playerId: string): string {
 .overrule-note {
   font-family: var(--font-typewriter);
   font-size: 0.8rem;
-  color: var(--ink-grey);
+  color: var(--color-text-muted);
   margin-top: 0.5rem;
   font-style: italic;
 }
@@ -1351,7 +1351,7 @@ function getPlayerNickname(playerId: string): string {
 .vote-note {
   font-family: var(--font-typewriter);
   font-size: 0.8rem;
-  color: var(--ink-grey);
+  color: var(--color-text-muted);
   margin-bottom: 1rem;
 }
 
@@ -1452,7 +1452,7 @@ function getPlayerNickname(playerId: string): string {
 
 .for-label { color: var(--color-danger); }
 .against-label { color: var(--color-success); }
-.pending-label { color: var(--ink-grey); }
+.pending-label { color: var(--color-text-muted); }
 
 .prompt-reminder {
   font-family: var(--font-typewriter);
@@ -1579,7 +1579,7 @@ function getPlayerNickname(playerId: string): string {
 
 .waiting-text {
   font-family: var(--font-typewriter);
-  color: var(--ink-grey);
+  color: var(--color-text-muted);
   font-style: italic;
 }
 
