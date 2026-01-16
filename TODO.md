@@ -1,0 +1,1 @@
+- Some tiles are hard to read.
