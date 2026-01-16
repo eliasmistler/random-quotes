@@ -27,10 +27,12 @@ from app.models.common import HealthResponse
 from app.models.content import load_game_content
 from app.models.game import ChatMessage, GamePhase
 from app.services.game import (
+    add_bot_to_game,
     add_player_to_game,
     advance_round,
     advance_to_judging,
     all_submissions_in,
+    bot_judge_select_winner,
     can_cast_overrule_vote,
     can_cast_winner_vote,
     cast_overrule_vote,
@@ -40,6 +42,7 @@ from app.services.game import (
     restart_game,
     select_winner,
     start_game,
+    submit_bot_responses,
     submit_response,
 )
 from app.services.store import get_game, get_game_by_invite_code, save_game
@@ -186,6 +189,7 @@ def get_game_state(game_id: str, player_id: str) -> GameStateResponse:
             score=p.score,
             is_host=p.is_host,
             is_connected=p.is_connected,
+            is_bot=p.is_bot,
         )
         for p in game.players.values()
     ]
@@ -246,6 +250,13 @@ async def start_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
 
     try:
         updated_game = start_game(game, _game_content)
+        # Have bots submit their responses
+        updated_game = submit_bot_responses(updated_game)
+        # Check if all submissions are in (could happen if all players are bots except host)
+        if all_submissions_in(updated_game):
+            updated_game = advance_to_judging(updated_game)
+            # If judge is a bot, have them select a winner
+            updated_game = bot_judge_select_winner(updated_game)
         save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, game_id)
         logger.info("Game started successfully: game_id=%s", game_id)
@@ -286,6 +297,8 @@ async def submit_response_endpoint(game_id: str, player_id: str, request: Submit
 
         if all_submissions_in(updated_game):
             updated_game = advance_to_judging(updated_game)
+            # If judge is a bot, have them select a winner
+            updated_game = bot_judge_select_winner(updated_game)
 
         save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, game_id)
@@ -367,6 +380,16 @@ async def advance_round_endpoint(game_id: str, player_id: str) -> ActionResponse
 
     try:
         updated_game = advance_round(game, _game_content)
+
+        # If we're in a new round, have bots submit their responses
+        if updated_game.phase == GamePhase.ROUND_SUBMISSION:
+            updated_game = submit_bot_responses(updated_game)
+            # Check if all submissions are in
+            if all_submissions_in(updated_game):
+                updated_game = advance_to_judging(updated_game)
+                # If judge is a bot, have them select a winner
+                updated_game = bot_judge_select_winner(updated_game)
+
         save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, game_id)
 
@@ -483,6 +506,45 @@ async def restart_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
         raise HTTPException(
             status_code=400,
             detail={"error": str(e), "code": "CANNOT_RESTART"},
+        ) from e
+
+
+@router.post(
+    "/games/{game_id}/add-bot",
+    response_model=ActionResponse,
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+async def add_bot_endpoint(game_id: str, player_id: str) -> ActionResponse:
+    """Add a bot player to the game. Only the host can add bots."""
+    game = get_game(game_id)
+    if not game:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Game not found", "code": "GAME_NOT_FOUND"},
+        )
+
+    player = game.players.get(player_id)
+    if not player:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Player not found in game", "code": "PLAYER_NOT_FOUND"},
+        )
+
+    if not player.is_host:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "Only the host can add bots", "code": "NOT_HOST"},
+        )
+
+    try:
+        updated_game = add_bot_to_game(game)
+        save_game(updated_game)
+        await manager.broadcast({"type": "game_update"}, game_id)
+        return ActionResponse(success=True, message="Bot added")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": str(e), "code": "CANNOT_ADD_BOT"},
         ) from e
 
 

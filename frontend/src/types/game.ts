@@ -11,6 +11,7 @@ export interface Player {
   score: number
   is_host: boolean
   is_connected: boolean
+  is_bot: boolean
   word_tiles: string[]
 }
 
@@ -20,6 +21,7 @@ export interface PlayerInfo {
   score: number
   is_host: boolean
   is_connected: boolean
+  is_bot: boolean
 }
 
 export interface GameConfig {

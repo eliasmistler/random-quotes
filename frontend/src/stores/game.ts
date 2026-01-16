@@ -76,6 +76,7 @@ export const useGameStore = defineStore('game', () => {
           score: response.player.score,
           is_host: response.player.is_host,
           is_connected: response.player.is_connected,
+          is_bot: response.player.is_bot,
         },
       ]
       myTiles.value = response.player.word_tiles
@@ -274,6 +275,23 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  async function addBot() {
+    if (!gameId.value || !playerId.value) return
+
+    isLoading.value = true
+    error.value = null
+
+    try {
+      await api.addBot(gameId.value, playerId.value)
+      await refreshGameState()
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Unknown error'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   function leaveGame() {
     ws.disconnect()
     gameId.value = null
@@ -328,6 +346,7 @@ export const useGameStore = defineStore('game', () => {
     castOverruleVote,
     castWinnerVote,
     restartGame,
+    addBot,
     leaveGame,
     loadChatHistory,
     sendChatMessage,

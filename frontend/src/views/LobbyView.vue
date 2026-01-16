@@ -49,6 +49,19 @@ const canStartGame = () => {
   const minPlayers = gameStore.config?.min_players ?? 2
   return gameStore.playerCount >= minPlayers
 }
+
+const canAddBot = () => {
+  const maxPlayers = gameStore.config?.max_players ?? 8
+  return gameStore.playerCount < maxPlayers
+}
+
+async function handleAddBot() {
+  try {
+    await gameStore.addBot()
+  } catch (e) {
+    console.error('Failed to add bot:', e)
+  }
+}
 </script>
 
 <template>
@@ -91,15 +104,25 @@ const canStartGame = () => {
           v-for="(player, index) in gameStore.players"
           :key="player.id"
           class="player-item"
+          :class="{ 'is-bot': player.is_bot }"
           :style="{ animationDelay: `${index * 0.1}s` }"
         >
           <span class="player-name">{{ player.nickname }}</span>
           <div class="badges">
+            <span v-if="player.is_bot" class="badge bot-badge">Bot</span>
             <span v-if="player.is_host" class="badge host-badge">Host</span>
             <span v-if="player.id === gameStore.playerId" class="badge you-badge">You</span>
           </div>
         </li>
       </ul>
+      <button
+        v-if="gameStore.isHost && canAddBot()"
+        @click="handleAddBot"
+        :disabled="gameStore.isLoading"
+        class="add-bot-btn"
+      >
+        + Add Bot
+      </button>
     </div>
 
     <!-- Actions -->
@@ -376,6 +399,39 @@ const canStartGame = () => {
 .you-badge {
   background: var(--accent-red);
   color: white;
+}
+
+.bot-badge {
+  background: var(--scrap-blue);
+  color: var(--ink-black);
+}
+
+.player-item.is-bot {
+  background: var(--scrap-blue);
+  opacity: 0.9;
+}
+
+.add-bot-btn {
+  margin-top: 1rem;
+  padding: 0.6rem 1.2rem;
+  background: var(--scrap-newsprint);
+  color: var(--ink-black);
+  border: 2px dashed var(--ink-grey);
+  cursor: pointer;
+  font-family: var(--font-typewriter);
+  font-size: 0.85rem;
+  box-shadow: var(--shadow-paper);
+}
+
+.add-bot-btn:hover:not(:disabled) {
+  background: var(--scrap-blue);
+  border-color: var(--ink-black);
+  transform: rotate(0.5deg);
+}
+
+.add-bot-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ==========================================================================

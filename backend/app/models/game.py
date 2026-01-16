@@ -25,6 +25,7 @@ class Player(BaseModel):
     score: int = 0
     is_host: bool = False
     is_connected: bool = True
+    is_bot: bool = False
     word_tiles: list[str] = Field(default_factory=list)
 
 

@@ -525,3 +525,115 @@ def determine_voted_winner(game: Game) -> Game:
             "players": updated_players,
         }
     )
+
+
+# =============================================================================
+# Bot Player Functions
+# =============================================================================
+
+
+def get_next_bot_number(game: Game) -> int:
+    """Get the next bot number based on existing bots in the game."""
+    existing_bots = [p for p in game.players.values() if p.is_bot]
+    if not existing_bots:
+        return 1
+    # Extract numbers from bot nicknames like "Bot 1", "Bot 2", etc.
+    numbers = []
+    for bot in existing_bots:
+        if bot.nickname.startswith("Bot "):
+            try:
+                numbers.append(int(bot.nickname[4:]))
+            except ValueError:
+                pass
+    return max(numbers, default=0) + 1
+
+
+def create_bot_player(bot_number: int) -> Player:
+    """Create a bot player with the given number."""
+    return Player(nickname=f"Bot {bot_number}", is_host=False, is_bot=True)
+
+
+def add_bot_to_game(game: Game) -> Game:
+    """Add a bot player to the game.
+
+    Returns a new game with the bot added.
+    Raises ValueError if game is full or not in lobby phase.
+    """
+    if game.phase != GamePhase.LOBBY:
+        raise ValueError("Cannot add bot: game is not in lobby phase")
+
+    if len(game.players) >= game.config.max_players:
+        raise ValueError("Cannot add bot: game is full")
+
+    bot_number = get_next_bot_number(game)
+    bot = create_bot_player(bot_number)
+    updated_players = {**game.players, bot.id: bot}
+    return game.model_copy(update={"players": updated_players})
+
+
+def submit_bot_responses(game: Game) -> Game:
+    """Have all bots submit random responses.
+
+    Each bot picks 1-5 random tiles from their hand.
+    Only submits for bots that haven't submitted yet.
+    """
+    if game.phase != GamePhase.ROUND_SUBMISSION:
+        return game
+
+    if game.current_round is None:
+        return game
+
+    updated_game = game
+    for player_id, player in game.players.items():
+        if not player.is_bot:
+            continue
+        if player_id in updated_game.current_round.submissions:
+            continue
+        if not player.word_tiles:
+            continue
+
+        # Pick 1-5 random tiles
+        num_tiles = random.randint(1, min(5, len(player.word_tiles)))
+        tiles_to_use = random.sample(player.word_tiles, num_tiles)
+
+        updated_game = submit_response(updated_game, player_id, tiles_to_use)
+
+    return updated_game
+
+
+def bot_judge_select_winner(game: Game) -> Game:
+    """Have a bot judge select a random winner.
+
+    Selects randomly from non-bot submissions if available,
+    otherwise from all submissions except their own.
+    """
+    if game.phase != GamePhase.ROUND_JUDGING:
+        return game
+
+    if game.current_round is None:
+        return game
+
+    judge_id = game.current_round.judge_id
+    if judge_id is None:
+        return game
+
+    judge = game.players.get(judge_id)
+    if judge is None or not judge.is_bot:
+        return game
+
+    # Get all submissions except the judge's own
+    candidate_ids = [pid for pid in game.current_round.submissions.keys() if pid != judge_id]
+
+    if not candidate_ids:
+        # If no other submissions, judge must pick themselves
+        candidate_ids = [judge_id]
+
+    # Prefer non-bot submissions
+    non_bot_candidates = [pid for pid in candidate_ids if not game.players[pid].is_bot]
+
+    if non_bot_candidates:
+        winner_id = random.choice(non_bot_candidates)
+    else:
+        winner_id = random.choice(candidate_ids)
+
+    return select_winner(game, winner_id)

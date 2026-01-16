@@ -204,6 +204,19 @@ export async function restartGame(gameId: string, playerId: string): Promise<Act
   return response.json()
 }
 
+export async function addBot(gameId: string, playerId: string): Promise<ActionResponse> {
+  const response = await fetch(`${API_BASE}/games/${gameId}/add-bot?player_id=${playerId}`, {
+    method: 'POST',
+  })
+
+  if (!response.ok) {
+    const message = await extractErrorMessage(response, 'Failed to add bot')
+    throw new Error(message)
+  }
+
+  return response.json()
+}
+
 export async function sendChatMessage(
   gameId: string,
   playerId: string,
