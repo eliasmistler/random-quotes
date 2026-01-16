@@ -111,6 +111,27 @@ export async function submitResponse(
   return response.json()
 }
 
+export async function reorderTiles(
+  gameId: string,
+  playerId: string,
+  tileOrder: string[],
+): Promise<ActionResponse> {
+  const response = await fetch(`${API_BASE}/games/${gameId}/reorder-tiles?player_id=${playerId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ tile_order: tileOrder }),
+  })
+
+  if (!response.ok) {
+    const message = await extractErrorMessage(response, 'Failed to reorder tiles')
+    throw new Error(message)
+  }
+
+  return response.json()
+}
+
 export async function selectWinner(
   gameId: string,
   playerId: string,

@@ -355,6 +355,28 @@ def replenish_tiles(game: Game, content: GameContentConfig) -> Game:
     return game.model_copy(update={"players": updated_players})
 
 
+def reorder_player_tiles(game: Game, player_id: str, tile_order: list[str]) -> Game:
+    """Reorder a player's tiles to match the specified order.
+
+    Validates that tile_order contains exactly the same tiles as the player
+    currently has (just in a different order).
+
+    Raises ValueError if:
+    - Player not found
+    - tile_order doesn't match player's current tiles exactly
+    """
+    player = game.players.get(player_id)
+    if player is None:
+        raise ValueError("Player not found")
+
+    # Validate same tiles (sorted comparison handles duplicates)
+    if sorted(tile_order) != sorted(player.word_tiles):
+        raise ValueError("Tile order doesn't match current tiles")
+
+    updated_player = player.model_copy(update={"word_tiles": tile_order})
+    return game.model_copy(update={"players": {**game.players, player_id: updated_player}})
+
+
 def get_non_judge_player_ids(game: Game) -> list[str]:
     """Get list of player IDs excluding the judge."""
     if game.current_round is None or game.current_round.judge_id is None:
