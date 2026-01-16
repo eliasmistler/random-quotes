@@ -32,7 +32,7 @@ from app.services.game import (
     advance_round,
     advance_to_judging,
     all_submissions_in,
-    bot_judge_select_winner,
+    bot_judge_select_winner_with_llm,
     can_cast_overrule_vote,
     can_cast_winner_vote,
     cast_overrule_vote,
@@ -42,7 +42,7 @@ from app.services.game import (
     restart_game,
     select_winner,
     start_game,
-    submit_bot_responses,
+    submit_bot_responses_with_llm,
     submit_response,
 )
 from app.services.store import get_game, get_game_by_invite_code, save_game
@@ -250,13 +250,13 @@ async def start_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
 
     try:
         updated_game = start_game(game, _game_content)
-        # Have bots submit their responses
-        updated_game = submit_bot_responses(updated_game)
+        # Have bots submit their responses (using LLM if available)
+        updated_game = await submit_bot_responses_with_llm(updated_game)
         # Check if all submissions are in (could happen if all players are bots except host)
         if all_submissions_in(updated_game):
             updated_game = advance_to_judging(updated_game)
-            # If judge is a bot, have them select a winner
-            updated_game = bot_judge_select_winner(updated_game)
+            # If judge is a bot, have them select a winner (using LLM if available)
+            updated_game = await bot_judge_select_winner_with_llm(updated_game)
         await save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, game_id)
         logger.info("Game started successfully: game_id=%s", game_id)
@@ -297,8 +297,8 @@ async def submit_response_endpoint(game_id: str, player_id: str, request: Submit
 
         if all_submissions_in(updated_game):
             updated_game = advance_to_judging(updated_game)
-            # If judge is a bot, have them select a winner
-            updated_game = bot_judge_select_winner(updated_game)
+            # If judge is a bot, have them select a winner (using LLM if available)
+            updated_game = await bot_judge_select_winner_with_llm(updated_game)
 
         await save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, game_id)
@@ -381,14 +381,14 @@ async def advance_round_endpoint(game_id: str, player_id: str) -> ActionResponse
     try:
         updated_game = advance_round(game, _game_content)
 
-        # If we're in a new round, have bots submit their responses
+        # If we're in a new round, have bots submit their responses (using LLM if available)
         if updated_game.phase == GamePhase.ROUND_SUBMISSION:
-            updated_game = submit_bot_responses(updated_game)
+            updated_game = await submit_bot_responses_with_llm(updated_game)
             # Check if all submissions are in
             if all_submissions_in(updated_game):
                 updated_game = advance_to_judging(updated_game)
-                # If judge is a bot, have them select a winner
-                updated_game = bot_judge_select_winner(updated_game)
+                # If judge is a bot, have them select a winner (using LLM if available)
+                updated_game = await bot_judge_select_winner_with_llm(updated_game)
 
         await save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, game_id)
@@ -515,7 +515,10 @@ async def restart_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
 )
 async def add_bot_endpoint(game_id: str, player_id: str) -> ActionResponse:
-    """Add a bot player to the game. Only the host can add bots."""
+    """Add a bot player to the game. Only the host can add bots.
+
+    This also triggers the LLM service to start (auto-scaling) if not already running.
+    """
     game = await get_game(game_id)
     if not game:
         raise HTTPException(
@@ -539,6 +542,22 @@ async def add_bot_endpoint(game_id: str, player_id: str) -> ActionResponse:
     try:
         updated_game = add_bot_to_game(game)
         await save_game(updated_game)
+
+        # Start the LLM service in the background (auto-scaling)
+        # This prepares the LLM for when the game starts
+        try:
+            # Fire and forget - don't block on LLM startup
+            import asyncio
+
+            from app.services.llm_manager import start_ollama
+
+            asyncio.create_task(start_ollama())
+            logger.info("LLM startup triggered for bot player")
+        except ImportError:
+            logger.debug("LLM manager not available - bots will use random selection")
+        except Exception as e:
+            logger.warning(f"Failed to trigger LLM startup: {e}")
+
         await manager.broadcast({"type": "game_update"}, game_id)
         return ActionResponse(success=True, message="Bot added")
     except ValueError as e:

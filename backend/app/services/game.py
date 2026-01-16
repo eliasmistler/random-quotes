@@ -3,11 +3,14 @@
 This module contains pure functions implementing the game logic.
 """
 
+import logging
 import random
 import string
 
 from app.models.content import GameContentConfig
 from app.models.game import Game, GameConfig, GamePhase, Player, Prompt, Round, Submission
+
+logger = logging.getLogger(__name__)
 
 
 def generate_invite_code(length: int = 6) -> str:
@@ -635,5 +638,134 @@ def bot_judge_select_winner(game: Game) -> Game:
         winner_id = random.choice(non_bot_candidates)
     else:
         winner_id = random.choice(candidate_ids)
+
+    return select_winner(game, winner_id)
+
+
+# =============================================================================
+# Async LLM-Powered Bot Functions
+# =============================================================================
+
+
+async def submit_bot_responses_with_llm(game: Game) -> Game:
+    """Have all bots submit responses using LLM intelligence.
+
+    Tries to use LLM for intelligent responses, falls back to random
+    if LLM is unavailable.
+    """
+    if game.phase != GamePhase.ROUND_SUBMISSION:
+        return game
+
+    if game.current_round is None:
+        return game
+
+    # Try to import LLM services
+    try:
+        from app.services.llm import generate_bot_submission
+        from app.services.llm_manager import record_activity
+
+        llm_available = True
+    except ImportError:
+        llm_available = False
+
+    updated_game = game
+    prompt_text = game.current_round.prompt.text
+
+    for player_id, player in game.players.items():
+        if not player.is_bot:
+            continue
+        if player_id in updated_game.current_round.submissions:
+            continue
+        if not player.word_tiles:
+            continue
+
+        tiles_to_use = None
+
+        # Try LLM first
+        if llm_available:
+            try:
+                tiles_to_use = await generate_bot_submission(prompt_text, player.word_tiles)
+                if tiles_to_use:
+                    await record_activity()
+                    logger.info(f"Bot {player.nickname} used LLM to select tiles: {tiles_to_use}")
+            except Exception as e:
+                logger.warning(f"LLM submission failed for bot {player.nickname}: {e}")
+                tiles_to_use = None
+
+        # Fallback to random selection
+        if tiles_to_use is None:
+            num_tiles = random.randint(1, min(5, len(player.word_tiles)))
+            tiles_to_use = random.sample(player.word_tiles, num_tiles)
+            logger.debug(f"Bot {player.nickname} using random tiles: {tiles_to_use}")
+
+        updated_game = submit_response(updated_game, player_id, tiles_to_use)
+
+    return updated_game
+
+
+async def bot_judge_select_winner_with_llm(game: Game) -> Game:
+    """Have a bot judge select a winner using LLM intelligence.
+
+    Tries to use LLM for intelligent judging, falls back to random
+    if LLM is unavailable.
+    """
+    if game.phase != GamePhase.ROUND_JUDGING:
+        return game
+
+    if game.current_round is None:
+        return game
+
+    judge_id = game.current_round.judge_id
+    if judge_id is None:
+        return game
+
+    judge = game.players.get(judge_id)
+    if judge is None or not judge.is_bot:
+        return game
+
+    # Get all submissions except the judge's own
+    candidate_ids = [pid for pid in game.current_round.submissions.keys() if pid != judge_id]
+
+    if not candidate_ids:
+        # If no other submissions, judge must pick themselves
+        candidate_ids = [judge_id]
+
+    winner_id = None
+
+    # Try LLM first
+    try:
+        from app.services.llm import generate_bot_judgment
+        from app.services.llm_manager import record_activity
+
+        prompt_text = game.current_round.prompt.text
+
+        # Prepare submissions for LLM (excluding judge's own)
+        submissions_for_llm = {
+            pid: game.current_round.submissions[pid].tiles_used
+            for pid in candidate_ids
+            if pid in game.current_round.submissions
+        }
+
+        if submissions_for_llm:
+            winner_id = await generate_bot_judgment(prompt_text, submissions_for_llm)
+            if winner_id and winner_id in candidate_ids:
+                await record_activity()
+                logger.info(f"Bot judge {judge.nickname} used LLM to select winner: {winner_id}")
+            else:
+                winner_id = None
+    except ImportError:
+        pass
+    except Exception as e:
+        logger.warning(f"LLM judging failed for bot {judge.nickname}: {e}")
+        winner_id = None
+
+    # Fallback to random selection (preferring non-bots)
+    if winner_id is None:
+        non_bot_candidates = [pid for pid in candidate_ids if not game.players[pid].is_bot]
+        if non_bot_candidates:
+            winner_id = random.choice(non_bot_candidates)
+        else:
+            winner_id = random.choice(candidate_ids)
+        logger.debug(f"Bot judge {judge.nickname} using random selection: {winner_id}")
 
     return select_winner(game, winner_id)

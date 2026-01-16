@@ -1,5 +1,10 @@
 # Docker Compose for local development and testing
 # Usage: docker compose up --build
+#
+# For LLM-powered bots (optional):
+#   docker compose --profile llm up --build
+#
+# The Ollama service will auto-scale: start when a bot is added, stop after 5 min idle.
 
 services:
   redis:
@@ -25,6 +30,11 @@ services:
       - DEBUG=true
       - CORS_ORIGINS=http://localhost,http://localhost:80,http://localhost:5173
       - REDIS_URL=redis://redis:6379/0
+      - DOCKER_COMPOSE_MODE=true
+      - OLLAMA_URL=http://ollama:11434
+    volumes:
+      # Mount Docker socket for container management (LLM auto-scaling)
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       redis:
         condition: service_healthy
@@ -54,5 +64,34 @@ services:
       retries: 3
       start_period: 5s
 
+  # Ollama LLM service for intelligent bot responses
+  # This service is managed by the backend's LLM manager for auto-scaling
+  ollama:
+    image: ollama/ollama:latest
+    profiles:
+      - llm
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    # GPU support (uncomment if you have NVIDIA GPU)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 volumes:
   redis_data:
+  ollama_data:
+    # Persists downloaded models between container restarts
