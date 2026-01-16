@@ -22,6 +22,50 @@ function updateScreenSize() {
   isSmallScreen.value = window.innerWidth < SMALL_SCREEN_BREAKPOINT
 }
 
+// Audio context for notification sound
+let audioContext: AudioContext | null = null
+
+function getAudioContext(): AudioContext {
+  if (!audioContext) {
+    audioContext = new AudioContext()
+  }
+  return audioContext
+}
+
+function playNotificationSound() {
+  try {
+    const ctx = getAudioContext()
+
+    // Resume context if suspended (browser autoplay policy)
+    if (ctx.state === 'suspended') {
+      ctx.resume()
+    }
+
+    const oscillator = ctx.createOscillator()
+    const gainNode = ctx.createGain()
+
+    oscillator.connect(gainNode)
+    gainNode.connect(ctx.destination)
+
+    // Pleasant notification tone
+    oscillator.frequency.setValueAtTime(880, ctx.currentTime) // A5 note
+    oscillator.frequency.setValueAtTime(660, ctx.currentTime + 0.1) // E5 note
+
+    oscillator.type = 'sine'
+
+    // Quick fade in and out
+    gainNode.gain.setValueAtTime(0, ctx.currentTime)
+    gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.02)
+    gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2)
+
+    oscillator.start(ctx.currentTime)
+    oscillator.stop(ctx.currentTime + 0.2)
+  } catch (e) {
+    // Audio not supported or blocked - fail silently
+    console.debug('Could not play notification sound:', e)
+  }
+}
+
 onMounted(() => {
   updateScreenSize()
   window.addEventListener('resize', updateScreenSize)
@@ -85,6 +129,14 @@ watch(
   (newLength, oldLength) => {
     if (newLength > oldLength) {
       // New message arrived
+      const latestMessage = chatMessages.value[chatMessages.value.length - 1]
+      const isFromOther = latestMessage && latestMessage.player_id !== gameStore.playerId
+
+      // Play sound for messages from others when chat is closed
+      if (isFromOther && !isOpen.value) {
+        playNotificationSound()
+      }
+
       if (!isOpen.value && !isSmallScreen.value) {
         // Auto-open on large screens
         isOpen.value = true
