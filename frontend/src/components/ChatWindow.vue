@@ -1,17 +1,35 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useGameStore } from '@/stores/game'
 import type { ChatMessage } from '@/types/game'
 
 const gameStore = useGameStore()
 
-const isOpen = ref(true)
+const isOpen = ref(false)
 const messageInput = ref('')
 const chatMessagesRef = ref<HTMLElement | null>(null)
 const isSubmitting = ref(false)
+const isSmallScreen = ref(false)
 
 const chatMessages = computed(() => gameStore.chatMessages)
 const unreadCount = computed(() => gameStore.unreadChatCount)
+const hasUnread = computed(() => unreadCount.value > 0)
+
+// Track screen size for responsive behavior
+const SMALL_SCREEN_BREAKPOINT = 640
+
+function updateScreenSize() {
+  isSmallScreen.value = window.innerWidth < SMALL_SCREEN_BREAKPOINT
+}
+
+onMounted(() => {
+  updateScreenSize()
+  window.addEventListener('resize', updateScreenSize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateScreenSize)
+})
 
 function toggleChat() {
   isOpen.value = !isOpen.value
@@ -61,10 +79,17 @@ function isOwnMessage(message: ChatMessage): boolean {
   return message.player_id === gameStore.playerId
 }
 
-// Watch for new messages and scroll to bottom
+// Watch for new messages: auto-open on large screens, just notify on small screens
 watch(
   () => chatMessages.value.length,
-  () => {
+  (newLength, oldLength) => {
+    if (newLength > oldLength) {
+      // New message arrived
+      if (!isOpen.value && !isSmallScreen.value) {
+        // Auto-open on large screens
+        isOpen.value = true
+      }
+    }
     if (isOpen.value) {
       scrollToBottom()
       gameStore.markChatAsRead()
@@ -85,7 +110,9 @@ watch(isOpen, (open) => {
     <!-- Chat Header -->
     <button class="chat-header" @click="toggleChat">
       <span class="chat-title">Chat</span>
-      <span v-if="!isOpen && unreadCount > 0" class="unread-badge">{{ unreadCount }}</span>
+      <!-- Show count badge on large screens, dot on small screens -->
+      <span v-if="!isOpen && hasUnread && !isSmallScreen" class="unread-badge">{{ unreadCount }}</span>
+      <span v-if="!isOpen && hasUnread && isSmallScreen" class="unread-dot"></span>
       <span class="toggle-icon">{{ isOpen ? '−' : '+' }}</span>
     </button>
 
@@ -198,6 +225,26 @@ watch(isOpen, (open) => {
   margin-right: 0.5rem;
   min-width: 18px;
   text-align: center;
+}
+
+.unread-dot {
+  width: 10px;
+  height: 10px;
+  background: var(--accent-red);
+  border-radius: 50%;
+  margin-right: 0.5rem;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
 }
 
 .toggle-icon {
