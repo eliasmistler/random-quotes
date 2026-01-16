@@ -1,4 +1,5 @@
 import { test, expect, BrowserContext, Page } from '@playwright/test';
+import * as readline from 'readline';
 
 /**
  * E2E Smoke Test for Ransom Notes
@@ -11,6 +12,10 @@ import { test, expect, BrowserContext, Page } from '@playwright/test';
  * - Judge picks a winner
  * - Game continues until someone reaches 5 points
  * - Verifies game over screen shows
+ *
+ * Interactive mode (--interactive):
+ * - Press Ctrl-C to pause the test
+ * - Press Enter to resume
  */
 
 interface Player {
@@ -19,6 +24,77 @@ interface Player {
   name: string;
   isHost: boolean;
 }
+
+// Interactive mode state
+const isInteractive = process.env.INTERACTIVE === 'true';
+let isPaused = false;
+let pauseResolver: (() => void) | null = null;
+let readlineInterface: readline.Interface | null = null;
+
+/**
+ * Set up interactive mode signal handler
+ */
+function setupInteractiveMode(): void {
+  if (!isInteractive) return;
+
+  // Handle Ctrl-C to pause instead of exit
+  process.on('SIGINT', () => {
+    if (isPaused) {
+      // Already paused, ignore
+      return;
+    }
+    isPaused = true;
+    console.log('\n\n========================================');
+    console.log('TEST PAUSED - Inspect the browser now');
+    console.log('Press Enter to resume...');
+    console.log('========================================\n');
+  });
+
+  // Set up readline to listen for Enter key
+  readlineInterface = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  readlineInterface.on('line', () => {
+    if (isPaused && pauseResolver) {
+      console.log('Resuming test...\n');
+      isPaused = false;
+      const resolver = pauseResolver;
+      pauseResolver = null;
+      resolver();
+    }
+  });
+
+  // Handle close event to clean up
+  readlineInterface.on('close', () => {
+    readlineInterface = null;
+  });
+}
+
+/**
+ * Clean up interactive mode resources
+ */
+function cleanupInteractiveMode(): void {
+  if (readlineInterface) {
+    readlineInterface.close();
+    readlineInterface = null;
+  }
+}
+
+/**
+ * Check if paused and wait for resume in interactive mode
+ */
+async function checkPause(): Promise<void> {
+  if (!isInteractive || !isPaused) return;
+
+  return new Promise<void>((resolve) => {
+    pauseResolver = resolve;
+  });
+}
+
+// Initialize interactive mode
+setupInteractiveMode();
 
 test.describe('Ransom Notes - Full Game Smoke Test', () => {
   let host: Player;
@@ -48,13 +124,22 @@ test.describe('Ransom Notes - Full Game Smoke Test', () => {
   test.afterAll(async () => {
     await host.context.close();
     await guest.context.close();
+    cleanupInteractiveMode();
   });
 
   test('Complete game from lobby to game over', async () => {
+    if (isInteractive) {
+      console.log('\n========================================');
+      console.log('INTERACTIVE MODE ENABLED');
+      console.log('Press Ctrl-C at any time to pause');
+      console.log('========================================\n');
+    }
+
     // ============================================
     // PHASE 1: Host creates game
     // ============================================
     console.log('Phase 1: Host creating game...');
+    await checkPause();
 
     await host.page.goto('/');
     await host.page.waitForLoadState('networkidle');
@@ -81,6 +166,7 @@ test.describe('Ransom Notes - Full Game Smoke Test', () => {
     // PHASE 2: Guest joins game
     // ============================================
     console.log(`Phase 2: Guest joining game with code: ${inviteCode}`);
+    await checkPause();
 
     await guest.page.goto('/');
     await guest.page.waitForLoadState('networkidle');
@@ -116,6 +202,7 @@ test.describe('Ransom Notes - Full Game Smoke Test', () => {
     // PHASE 3: Host starts the game
     // ============================================
     console.log('Phase 3: Host starting game...');
+    await checkPause();
 
     // Host clicks start game button
     await host.page.click('.start-btn');
@@ -148,6 +235,7 @@ test.describe('Ransom Notes - Full Game Smoke Test', () => {
     // VERIFY GAME OVER
     // ============================================
     console.log('Verifying game over...');
+    await checkPause();
 
     // Check for game over screen
     await expect(host.page.locator('.game-over')).toBeVisible({ timeout: 15000 });
@@ -176,6 +264,7 @@ async function playRound(
   roundNumber: number
 ): Promise<void> {
   console.log(`\n--- Round ${roundNumber} ---`);
+  await checkPause();
 
   // Both players submit their answers
   await submitAnswer(host);
@@ -214,6 +303,7 @@ async function playRound(
  * Submit an answer by selecting tiles
  */
 async function submitAnswer(player: Player): Promise<void> {
+  await checkPause();
   console.log(`${player.name} submitting answer...`);
 
   // Wait for tiles to be visible
@@ -239,6 +329,7 @@ async function submitAnswer(player: Player): Promise<void> {
  * Judge picks a winner from submissions
  */
 async function pickWinner(judge: Player): Promise<void> {
+  await checkPause();
   // Wait for judging phase - look for judging area
   await expect(judge.page.locator('.judging-area')).toBeVisible({ timeout: 15000 });
 
@@ -262,6 +353,7 @@ async function pickWinner(judge: Player): Promise<void> {
  * Host advances to the next round
  */
 async function advanceRound(host: Player): Promise<void> {
+  await checkPause();
   // Check if game is already over (no advance button when game ends)
   const gameOver = await host.page.locator('.game-over').isVisible().catch(() => false);
   if (gameOver) {

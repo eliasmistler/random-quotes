@@ -3,9 +3,11 @@
 # Starts Docker Compose, runs a full browser-based game test, then cleans up
 #
 # Usage:
-#   ./scripts/e2e-smoke-test.sh           # Run headless (for CI)
-#   ./scripts/e2e-smoke-test.sh --headed  # Run with visible browser (for local testing)
-#   ./scripts/e2e-smoke-test.sh --debug   # Run headed with slow motion
+#   ./scripts/e2e-smoke-test.sh               # Run headless (for CI)
+#   ./scripts/e2e-smoke-test.sh --headed      # Run with visible browser (for local testing)
+#   ./scripts/e2e-smoke-test.sh --debug       # Run headed with slow motion (500ms)
+#   ./scripts/e2e-smoke-test.sh --interactive # Run headed with pause/resume on Ctrl-C (1000ms slowmo)
+#   ./scripts/e2e-smoke-test.sh --slowmo=200  # Override slow motion delay (in ms)
 
 set -e
 
@@ -22,6 +24,8 @@ NC='\033[0m' # No Color
 # Parse arguments
 HEADED=false
 SLOWMO=0
+SLOWMO_OVERRIDE=""
+INTERACTIVE=false
 for arg in "$@"; do
     case $arg in
         --headed)
@@ -31,8 +35,21 @@ for arg in "$@"; do
             HEADED=true
             SLOWMO=500
             ;;
+        --interactive)
+            HEADED=true
+            SLOWMO=1000
+            INTERACTIVE=true
+            ;;
+        --slowmo=*)
+            SLOWMO_OVERRIDE="${arg#*=}"
+            ;;
     esac
 done
+
+# Apply slowmo override if specified
+if [ -n "$SLOWMO_OVERRIDE" ]; then
+    SLOWMO=$SLOWMO_OVERRIDE
+fi
 
 log_info() {
     echo -e "${GREEN}[INFO]${NC} $1"
@@ -130,6 +147,7 @@ cd "$SCRIPT_DIR"
 # Set environment variables for Playwright
 export HEADED
 export SLOWMO
+export INTERACTIVE
 
 # Run tests
 if [ "$HEADED" = true ]; then
@@ -137,6 +155,10 @@ if [ "$HEADED" = true ]; then
     if [ "$SLOWMO" -gt 0 ]; then
         log_info "Slow motion enabled: ${SLOWMO}ms between actions"
     fi
+fi
+
+if [ "$INTERACTIVE" = true ]; then
+    log_info "Running in INTERACTIVE mode - press Ctrl-C to pause, then Enter to resume"
 fi
 
 # Capture test exit code but don't exit immediately
