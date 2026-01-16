@@ -27,6 +27,14 @@ class LLMResponse:
     error: str | None = None
 
 
+@dataclass
+class BotSubmissionResult:
+    """Result from a bot's LLM-generated submission."""
+
+    tiles: list[str]
+    reaction: str | None = None  # Optional chat message if the bot is proud of its answer
+
+
 async def generate_completion(prompt: str, timeout: float = OLLAMA_TIMEOUT) -> LLMResponse:
     """Generate a completion from Ollama.
 
@@ -78,7 +86,7 @@ async def check_ollama_health() -> bool:
         return False
 
 
-async def generate_bot_submission(prompt_text: str, available_tiles: list[str]) -> list[str] | None:
+async def generate_bot_submission(prompt_text: str, available_tiles: list[str]) -> BotSubmissionResult | None:
     """Generate a bot's submission using LLM intelligence.
 
     Args:
@@ -86,7 +94,7 @@ async def generate_bot_submission(prompt_text: str, available_tiles: list[str]) 
         available_tiles: List of word tiles the bot has available.
 
     Returns:
-        List of tiles to use in order, or None if LLM unavailable.
+        BotSubmissionResult with tiles and optional reaction, or None if LLM unavailable.
     """
     if not available_tiles:
         return None
@@ -106,17 +114,50 @@ RULES:
 - You MUST only use tiles from your available tiles list (exact spelling)
 - Humor, creativity, and unexpected answers win!
 
-Respond with ONLY the tiles you want to use, separated by commas, in the order you want them. Nothing else.
-Example response: word1, word2, word3"""
+Respond in this exact format:
+TILES: word1, word2, word3
+RATING: [1-5 stars, where 5 means you think this answer is hilarious]
+REACTION: [If 4-5 stars, write a SHORT excited comment about your answer, max 10 words. Otherwise write "none"]
+
+Example response:
+TILES: cheese, explosion, why
+RATING: 5
+REACTION: This one's a winner!"""
 
     response = await generate_completion(llm_prompt)
 
     if not response.success or not response.text:
         return None
 
-    # Parse the response - extract tiles that match available tiles
+    # Parse the structured response
+    lines = response.text.strip().split("\n")
+    tiles_line = None
+    rating = 0
+    reaction = None
+
+    for line in lines:
+        line = line.strip()
+        if line.upper().startswith("TILES:"):
+            tiles_line = line[6:].strip()
+        elif line.upper().startswith("RATING:"):
+            rating_text = line[7:].strip()
+            # Extract number from rating (handles "5", "5 stars", "5/5", etc.)
+            for char in rating_text:
+                if char.isdigit():
+                    rating = int(char)
+                    break
+        elif line.upper().startswith("REACTION:"):
+            reaction_text = line[9:].strip()
+            if reaction_text.lower() not in ("none", "n/a", "-", ""):
+                reaction = reaction_text
+
+    if not tiles_line:
+        # Fallback: try to parse the whole response as comma-separated tiles
+        tiles_line = response.text.strip().split("\n")[0]
+
+    # Parse tiles
     selected_tiles = []
-    response_parts = [part.strip().strip('"').strip("'").lower() for part in response.text.split(",")]
+    response_parts = [part.strip().strip('"').strip("'").lower() for part in tiles_line.split(",")]
 
     # Create lowercase mapping for matching
     tile_map = {tile.lower(): tile for tile in available_tiles}
@@ -131,7 +172,10 @@ Example response: word1, word2, word3"""
     if not selected_tiles:
         return None
 
-    return selected_tiles
+    # Only include reaction if rating was 4 or higher
+    final_reaction = reaction if rating >= 4 else None
+
+    return BotSubmissionResult(tiles=selected_tiles, reaction=final_reaction)
 
 
 async def generate_bot_judgment(prompt_text: str, submissions: dict[str, list[str]]) -> str | None:
