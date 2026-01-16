@@ -26,8 +26,9 @@ from app.models.api import (
 )
 from app.models.common import HealthResponse
 from app.models.content import load_game_content
-from app.models.game import ChatMessage, GamePhase
+from app.models.game import ChatMessage, Game, GamePhase
 from app.services.game import (
+    BotReaction,
     add_bot_to_game,
     add_player_to_game,
     advance_round,
@@ -54,6 +55,44 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 _game_content = load_game_content()
+
+
+async def _send_bot_reactions(game_id: str, game: Game, reactions: list[BotReaction]) -> Game:
+    """Send bot reactions as chat messages and update the game.
+
+    Args:
+        game_id: The game ID for broadcasting.
+        game: The current game state.
+        reactions: List of bot reactions to send.
+
+    Returns:
+        Updated game with chat messages added.
+    """
+    updated_game = game
+    for reaction in reactions:
+        message = ChatMessage(
+            player_id=reaction.player_id,
+            nickname=reaction.nickname,
+            text=reaction.message,
+        )
+        updated_chat = [*updated_game.chat_history, message]
+        updated_game = updated_game.model_copy(update={"chat_history": updated_chat})
+
+        # Broadcast the chat message
+        await manager.broadcast(
+            {
+                "type": "chat_message",
+                "data": {
+                    "id": message.id,
+                    "player_id": message.player_id,
+                    "nickname": message.nickname,
+                    "text": message.text,
+                    "timestamp": message.timestamp.isoformat(),
+                },
+            },
+            game_id,
+        )
+    return updated_game
 
 
 def _build_round_info(game, player_id: str) -> RoundInfo | None:
@@ -253,12 +292,15 @@ async def start_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
     try:
         updated_game = start_game(game, _game_content)
         # Have bots submit their responses (using LLM if available)
-        updated_game = await submit_bot_responses_with_llm(updated_game)
+        updated_game, bot_reactions = await submit_bot_responses_with_llm(updated_game)
         # Check if all submissions are in (could happen if all players are bots except host)
         if all_submissions_in(updated_game):
             updated_game = advance_to_judging(updated_game)
             # If judge is a bot, have them select a winner (using LLM if available)
             updated_game = await bot_judge_select_winner_with_llm(updated_game)
+        # Send any bot reactions as chat messages
+        if bot_reactions:
+            updated_game = await _send_bot_reactions(game_id, updated_game, bot_reactions)
         await save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, game_id)
         logger.info("Game started successfully: game_id=%s", game_id)
@@ -410,8 +452,9 @@ async def advance_round_endpoint(game_id: str, player_id: str) -> ActionResponse
         updated_game = advance_round(game, _game_content)
 
         # If we're in a new round, have bots submit their responses (using LLM if available)
+        bot_reactions: list[BotReaction] = []
         if updated_game.phase == GamePhase.ROUND_SUBMISSION:
-            updated_game = await submit_bot_responses_with_llm(updated_game)
+            updated_game, bot_reactions = await submit_bot_responses_with_llm(updated_game)
             # Check if all submissions are in
             if all_submissions_in(updated_game):
                 updated_game = advance_to_judging(updated_game)
@@ -420,6 +463,10 @@ async def advance_round_endpoint(game_id: str, player_id: str) -> ActionResponse
 
         await save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, game_id)
+
+        # Send any bot reactions as chat messages
+        if bot_reactions:
+            updated_game = await _send_bot_reactions(game_id, updated_game, bot_reactions)
 
         if updated_game.phase == GamePhase.GAME_OVER:
             return ActionResponse(success=True, message="Game over")

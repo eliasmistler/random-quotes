@@ -6,6 +6,7 @@ This module contains pure functions implementing the game logic.
 import logging
 import random
 import string
+from dataclasses import dataclass
 
 from app.models.content import GameContentConfig
 from app.models.game import Game, GameConfig, GamePhase, Player, Prompt, Round, Submission
@@ -669,17 +670,29 @@ def bot_judge_select_winner(game: Game) -> Game:
 # =============================================================================
 
 
-async def submit_bot_responses_with_llm(game: Game) -> Game:
+@dataclass
+class BotReaction:
+    """A reaction message from a bot about their submission."""
+
+    player_id: str
+    nickname: str
+    message: str
+
+
+async def submit_bot_responses_with_llm(game: Game) -> tuple[Game, list[BotReaction]]:
     """Have all bots submit responses using LLM intelligence.
 
     Tries to use LLM for intelligent responses, falls back to random
     if LLM is unavailable.
+
+    Returns:
+        Tuple of (updated game, list of bot reactions to send as chat messages)
     """
     if game.phase != GamePhase.ROUND_SUBMISSION:
-        return game
+        return game, []
 
     if game.current_round is None:
-        return game
+        return game, []
 
     # Try to import LLM services
     try:
@@ -692,6 +705,7 @@ async def submit_bot_responses_with_llm(game: Game) -> Game:
 
     updated_game = game
     prompt_text = game.current_round.prompt.text
+    reactions: list[BotReaction] = []
 
     for player_id, player in game.players.items():
         if not player.is_bot:
@@ -702,14 +716,19 @@ async def submit_bot_responses_with_llm(game: Game) -> Game:
             continue
 
         tiles_to_use = None
+        reaction_message = None
 
         # Try LLM first
         if llm_available:
             try:
-                tiles_to_use = await generate_bot_submission(prompt_text, player.word_tiles)
-                if tiles_to_use:
+                result = await generate_bot_submission(prompt_text, player.word_tiles)
+                if result:
+                    tiles_to_use = result.tiles
+                    reaction_message = result.reaction
                     await record_activity()
                     logger.info(f"Bot {player.nickname} used LLM to select tiles: {tiles_to_use}")
+                    if reaction_message:
+                        logger.info(f"Bot {player.nickname} reaction: {reaction_message}")
             except Exception as e:
                 logger.warning(f"LLM submission failed for bot {player.nickname}: {e}")
                 tiles_to_use = None
@@ -722,7 +741,11 @@ async def submit_bot_responses_with_llm(game: Game) -> Game:
 
         updated_game = submit_response(updated_game, player_id, tiles_to_use)
 
-    return updated_game
+        # Collect reaction if the bot was proud of their answer
+        if reaction_message:
+            reactions.append(BotReaction(player_id=player_id, nickname=player.nickname, message=reaction_message))
+
+    return updated_game, reactions
 
 
 async def bot_judge_select_winner_with_llm(game: Game) -> Game:
