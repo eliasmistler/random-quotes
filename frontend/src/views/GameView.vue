@@ -148,16 +148,6 @@ function toggleTile(tile: string) {
   answerRows.value[0]?.push(tile)
 }
 
-// Drag start from the tiles pool
-function handleDragStart(e: DragEvent, tile: string) {
-  draggedTile.value = tile
-  dragSource.value = { type: 'pool' }
-  if (e.dataTransfer) {
-    e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('text/plain', tile)
-  }
-}
-
 // Drag start from within the answer box
 function handleAnswerDragStart(e: DragEvent, tile: string, rowIndex: number, tileIndex: number) {
   draggedTile.value = tile
