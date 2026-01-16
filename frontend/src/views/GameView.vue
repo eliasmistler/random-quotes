@@ -27,8 +27,10 @@ const displayPoolTiles = computed(() => {
   const tiles = gameStore.displayTiles
   if (poolDragIndex.value !== null && poolDropIndex.value !== null && isReorderingPool.value) {
     const result = [...tiles]
-    const [draggedTile] = result.splice(poolDragIndex.value, 1)
-    result.splice(poolDropIndex.value, 0, draggedTile)
+    const [movedTile] = result.splice(poolDragIndex.value, 1)
+    if (movedTile !== undefined) {
+      result.splice(poolDropIndex.value, 0, movedTile)
+    }
     return result
   }
   return tiles
