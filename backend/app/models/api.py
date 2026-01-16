@@ -69,6 +69,7 @@ class PlayerInfo(BaseModel):
     score: int
     is_host: bool
     is_connected: bool
+    is_bot: bool = False
 
 
 class SubmissionInfo(BaseModel):
