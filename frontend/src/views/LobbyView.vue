@@ -66,7 +66,10 @@ async function handleAddBot() {
 
 <template>
   <main class="lobby">
-    <h1 class="page-title">Game Lobby</h1>
+    <div class="title-row">
+      <h1 class="page-title">Game Lobby</h1>
+      <span class="wow-bubble">snip happens</span>
+    </div>
 
     <!-- Invite Code Section - Paper scrap style -->
     <div class="invite-section">
@@ -163,13 +166,58 @@ async function handleAddBot() {
    PAGE TITLE
    ========================================================================== */
 
+.title-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
 .page-title {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 0;
   font-family: var(--font-headline-2);
   font-size: clamp(1.75rem, 5vw, 2.5rem);
   letter-spacing: 0.08em;
   color: var(--color-heading);
+}
+
+.wow-bubble {
+  display: inline-block;
+  background: var(--accent-yellow);
+  color: var(--ink-black);
+  font-family: var(--font-display-1);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.4rem 0.8rem;
+  border-radius: 50% 50% 50% 10%;
+  transform: rotate(8deg);
+  box-shadow: var(--shadow-paper);
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+  position: relative;
+  animation: wobble 2s ease-in-out infinite;
+}
+
+.wow-bubble::before {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 8px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 8px solid var(--accent-yellow);
+  transform: rotate(-15deg);
+}
+
+@keyframes wobble {
+  0%, 100% { transform: rotate(8deg) scale(1); }
+  25% { transform: rotate(10deg) scale(1.02); }
+  75% { transform: rotate(6deg) scale(0.98); }
 }
 
 /* ==========================================================================
