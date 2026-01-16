@@ -78,7 +78,6 @@ export async function getGameState(gameId: string, playerId: string): Promise<Ga
 }
 
 export async function startGame(gameId: string, playerId: string): Promise<ActionResponse> {
-  console.log('Starting game:', { gameId, playerId })
   const response = await fetch(`${API_BASE}/games/${gameId}/start?player_id=${playerId}`, {
     method: 'POST',
   })

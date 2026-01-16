@@ -11,6 +11,8 @@ describe('useGameStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    // Default mock for getChatHistory to prevent console errors
+    mockApi.getChatHistory.mockResolvedValue({ messages: [] })
   })
 
   describe('initial state', () => {
