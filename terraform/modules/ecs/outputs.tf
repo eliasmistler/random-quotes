@@ -32,3 +32,8 @@ output "task_execution_role_arn" {
   description = "Task execution role ARN"
   value       = aws_iam_role.task_execution.arn
 }
+
+output "ecs_tasks_security_group_id" {
+  description = "Security group ID for ECS tasks"
+  value       = var.ecs_tasks_security_group_id
+}

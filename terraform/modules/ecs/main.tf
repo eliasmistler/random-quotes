@@ -80,36 +80,23 @@ resource "aws_security_group" "alb" {
   }
 }
 
-# Security Group for ECS Tasks
-resource "aws_security_group" "ecs_tasks" {
-  name        = "${local.name_prefix}-ecs-tasks"
-  description = "Security group for ECS tasks"
-  vpc_id      = var.vpc_id
+# Ingress rules for ECS Tasks security group (security group created externally)
+resource "aws_security_group_rule" "ecs_tasks_backend" {
+  type                     = "ingress"
+  from_port                = 8000
+  to_port                  = 8000
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.alb.id
+  security_group_id        = var.ecs_tasks_security_group_id
+}
 
-  ingress {
-    from_port       = 8000
-    to_port         = 8000
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
-  }
-
-  ingress {
-    from_port       = 80
-    to_port         = 80
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "${local.name_prefix}-ecs-tasks"
-  }
+resource "aws_security_group_rule" "ecs_tasks_frontend" {
+  type                     = "ingress"
+  from_port                = 80
+  to_port                  = 80
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.alb.id
+  security_group_id        = var.ecs_tasks_security_group_id
 }
 
 # Application Load Balancer
@@ -219,12 +206,17 @@ resource "aws_ecs_task_definition" "backend" {
         }
       ]
 
-      environment = [
+      environment = concat([
         {
           name  = "CORS_ORIGINS"
           value = "*"
         }
-      ]
+        ], var.redis_url != "" ? [
+        {
+          name  = "REDIS_URL"
+          value = var.redis_url
+        }
+      ] : [])
 
       logConfiguration = {
         logDriver = "awslogs"
@@ -326,7 +318,7 @@ resource "aws_ecs_service" "backend" {
 
   network_configuration {
     subnets          = var.public_subnet_ids
-    security_groups  = [aws_security_group.ecs_tasks.id]
+    security_groups  = [var.ecs_tasks_security_group_id]
     assign_public_ip = true
   }
 
@@ -353,7 +345,7 @@ resource "aws_ecs_service" "frontend" {
 
   network_configuration {
     subnets          = var.public_subnet_ids
-    security_groups  = [aws_security_group.ecs_tasks.id]
+    security_groups  = [var.ecs_tasks_security_group_id]
     assign_public_ip = true
   }
 

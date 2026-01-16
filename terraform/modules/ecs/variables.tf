@@ -57,3 +57,14 @@ variable "desired_count" {
   type        = number
   default     = 1
 }
+
+variable "redis_url" {
+  description = "Redis connection URL"
+  type        = string
+  default     = ""
+}
+
+variable "ecs_tasks_security_group_id" {
+  description = "Security group ID for ECS tasks (created externally to avoid circular dependencies)"
+  type        = string
+}

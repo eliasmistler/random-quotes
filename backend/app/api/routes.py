@@ -116,13 +116,13 @@ def health_check() -> HealthResponse:
     response_model=GameCreatedResponse,
     responses={400: {"model": ErrorResponse}},
 )
-def create_new_game(request: CreateGameRequest) -> GameCreatedResponse:
+async def create_new_game(request: CreateGameRequest) -> GameCreatedResponse:
     """Create a new game and become the host."""
     game, host = create_game(
         host_nickname=request.host_nickname,
         config=request.config,
     )
-    save_game(game)
+    await save_game(game)
     return GameCreatedResponse(
         game_id=game.id,
         invite_code=game.invite_code,
@@ -138,7 +138,7 @@ def create_new_game(request: CreateGameRequest) -> GameCreatedResponse:
 )
 async def join_game(invite_code: str, request: JoinGameRequest) -> GameJoinedResponse:
     """Join an existing game using an invite code."""
-    game = get_game_by_invite_code(invite_code)
+    game = await get_game_by_invite_code(invite_code)
     if not game:
         raise HTTPException(
             status_code=404,
@@ -147,7 +147,7 @@ async def join_game(invite_code: str, request: JoinGameRequest) -> GameJoinedRes
 
     try:
         updated_game, new_player = add_player_to_game(game, request.nickname)
-        save_game(updated_game)
+        await save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, updated_game.id)
         return GameJoinedResponse(
             game_id=updated_game.id,
@@ -166,9 +166,9 @@ async def join_game(invite_code: str, request: JoinGameRequest) -> GameJoinedRes
     response_model=GameStateResponse,
     responses={404: {"model": ErrorResponse}},
 )
-def get_game_state(game_id: str, player_id: str) -> GameStateResponse:
+async def get_game_state(game_id: str, player_id: str) -> GameStateResponse:
     """Get the current state of a game for a specific player."""
-    game = get_game(game_id)
+    game = await get_game(game_id)
     if not game:
         raise HTTPException(
             status_code=404,
@@ -214,7 +214,7 @@ async def start_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
     """Start the game. Only the host can start the game."""
     logger.info("Start game request: game_id=%s, player_id=%s", game_id, player_id)
 
-    game = get_game(game_id)
+    game = await get_game(game_id)
     if not game:
         logger.warning("Start game failed: game not found (game_id=%s)", game_id)
         raise HTTPException(
@@ -257,7 +257,7 @@ async def start_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
             updated_game = advance_to_judging(updated_game)
             # If judge is a bot, have them select a winner
             updated_game = bot_judge_select_winner(updated_game)
-        save_game(updated_game)
+        await save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, game_id)
         logger.info("Game started successfully: game_id=%s", game_id)
         return ActionResponse(success=True, message="Game started")
@@ -285,7 +285,7 @@ async def start_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
 )
 async def submit_response_endpoint(game_id: str, player_id: str, request: SubmitResponseRequest) -> ActionResponse:
     """Submit a response for the current round."""
-    game = get_game(game_id)
+    game = await get_game(game_id)
     if not game:
         raise HTTPException(
             status_code=404,
@@ -300,7 +300,7 @@ async def submit_response_endpoint(game_id: str, player_id: str, request: Submit
             # If judge is a bot, have them select a winner
             updated_game = bot_judge_select_winner(updated_game)
 
-        save_game(updated_game)
+        await save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, game_id)
         return ActionResponse(success=True, message="Response submitted")
     except ValueError as e:
@@ -317,7 +317,7 @@ async def submit_response_endpoint(game_id: str, player_id: str, request: Submit
 )
 async def select_winner_endpoint(game_id: str, player_id: str, request: SelectWinnerRequest) -> ActionResponse:
     """Judge selects the winner of the current round."""
-    game = get_game(game_id)
+    game = await get_game(game_id)
     if not game:
         raise HTTPException(
             status_code=404,
@@ -338,7 +338,7 @@ async def select_winner_endpoint(game_id: str, player_id: str, request: SelectWi
 
     try:
         updated_game = select_winner(game, request.winner_player_id)
-        save_game(updated_game)
+        await save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, game_id)
         return ActionResponse(success=True, message="Winner selected")
     except ValueError as e:
@@ -355,7 +355,7 @@ async def select_winner_endpoint(game_id: str, player_id: str, request: SelectWi
 )
 async def advance_round_endpoint(game_id: str, player_id: str) -> ActionResponse:
     """Advance to the next round after results are shown."""
-    game = get_game(game_id)
+    game = await get_game(game_id)
     if not game:
         raise HTTPException(
             status_code=404,
@@ -390,7 +390,7 @@ async def advance_round_endpoint(game_id: str, player_id: str) -> ActionResponse
                 # If judge is a bot, have them select a winner
                 updated_game = bot_judge_select_winner(updated_game)
 
-        save_game(updated_game)
+        await save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, game_id)
 
         if updated_game.phase == GamePhase.GAME_OVER:
@@ -410,7 +410,7 @@ async def advance_round_endpoint(game_id: str, player_id: str) -> ActionResponse
 )
 async def cast_overrule_vote_endpoint(game_id: str, player_id: str, request: OverruleVoteRequest) -> ActionResponse:
     """Cast a vote to overrule the judge's self-pick."""
-    game = get_game(game_id)
+    game = await get_game(game_id)
     if not game:
         raise HTTPException(
             status_code=404,
@@ -419,7 +419,7 @@ async def cast_overrule_vote_endpoint(game_id: str, player_id: str, request: Ove
 
     try:
         updated_game = cast_overrule_vote(game, player_id, request.vote_to_overrule)
-        save_game(updated_game)
+        await save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, game_id)
 
         if updated_game.current_round and updated_game.current_round.overruled:
@@ -446,7 +446,7 @@ async def cast_overrule_vote_endpoint(game_id: str, player_id: str, request: Ove
 )
 async def cast_winner_vote_endpoint(game_id: str, player_id: str, request: WinnerVoteRequest) -> ActionResponse:
     """Cast a vote for the new winner after successful overrule."""
-    game = get_game(game_id)
+    game = await get_game(game_id)
     if not game:
         raise HTTPException(
             status_code=404,
@@ -455,7 +455,7 @@ async def cast_winner_vote_endpoint(game_id: str, player_id: str, request: Winne
 
     try:
         updated_game = cast_winner_vote(game, player_id, request.winner_player_id)
-        save_game(updated_game)
+        await save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, game_id)
 
         if updated_game.current_round and updated_game.current_round.winner_id is not None:
@@ -477,7 +477,7 @@ async def cast_winner_vote_endpoint(game_id: str, player_id: str, request: Winne
 )
 async def restart_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
     """Restart the game with the same players. Only the host can restart."""
-    game = get_game(game_id)
+    game = await get_game(game_id)
     if not game:
         raise HTTPException(
             status_code=404,
@@ -499,7 +499,7 @@ async def restart_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
 
     try:
         updated_game = restart_game(game)
-        save_game(updated_game)
+        await save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, game_id)
         return ActionResponse(success=True, message="Game restarted - back to lobby")
     except ValueError as e:
@@ -516,7 +516,7 @@ async def restart_game_endpoint(game_id: str, player_id: str) -> ActionResponse:
 )
 async def add_bot_endpoint(game_id: str, player_id: str) -> ActionResponse:
     """Add a bot player to the game. Only the host can add bots."""
-    game = get_game(game_id)
+    game = await get_game(game_id)
     if not game:
         raise HTTPException(
             status_code=404,
@@ -538,7 +538,7 @@ async def add_bot_endpoint(game_id: str, player_id: str) -> ActionResponse:
 
     try:
         updated_game = add_bot_to_game(game)
-        save_game(updated_game)
+        await save_game(updated_game)
         await manager.broadcast({"type": "game_update"}, game_id)
         return ActionResponse(success=True, message="Bot added")
     except ValueError as e:
@@ -551,7 +551,7 @@ async def add_bot_endpoint(game_id: str, player_id: str) -> ActionResponse:
 @router.websocket("/ws/game/{game_id}")
 async def game_websocket(websocket: WebSocket, game_id: str, player_id: str):
     """WebSocket endpoint for real-time game updates."""
-    game = get_game(game_id)
+    game = await get_game(game_id)
     if not game or player_id not in game.players:
         await websocket.close(code=4004)
         return
@@ -572,7 +572,7 @@ async def game_websocket(websocket: WebSocket, game_id: str, player_id: str):
 )
 async def send_chat_message(game_id: str, player_id: str, request: ChatMessageRequest) -> ActionResponse:
     """Send a chat message to the game."""
-    game = get_game(game_id)
+    game = await get_game(game_id)
     if not game:
         raise HTTPException(
             status_code=404,
@@ -600,7 +600,7 @@ async def send_chat_message(game_id: str, player_id: str, request: ChatMessageRe
 
     updated_chat = [*game.chat_history, message]
     updated_game = game.model_copy(update={"chat_history": updated_chat})
-    save_game(updated_game)
+    await save_game(updated_game)
 
     await manager.broadcast(
         {
@@ -624,9 +624,9 @@ async def send_chat_message(game_id: str, player_id: str, request: ChatMessageRe
     response_model=ChatHistoryResponse,
     responses={404: {"model": ErrorResponse}},
 )
-def get_chat_history(game_id: str, player_id: str, limit: int = 100) -> ChatHistoryResponse:
+async def get_chat_history(game_id: str, player_id: str, limit: int = 100) -> ChatHistoryResponse:
     """Get the chat history for a game."""
-    game = get_game(game_id)
+    game = await get_game(game_id)
     if not game:
         raise HTTPException(
             status_code=404,

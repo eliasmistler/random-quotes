@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
 from app.config import get_settings
+from app.services.redis_client import check_redis_health, close_redis_pool
 from app.services.websocket import manager
 
 log = logging.getLogger(__name__)
@@ -28,6 +29,12 @@ async def heartbeat_task() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Manage application lifespan events."""
+    # Verify Redis connection on startup
+    if await check_redis_health():
+        log.info("Redis connection verified")
+    else:
+        log.warning("Redis connection failed - game state will not persist")
+
     # Start heartbeat background task
     task = asyncio.create_task(heartbeat_task())
     log.info("WebSocket heartbeat task started")
@@ -39,6 +46,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except asyncio.CancelledError:
         pass
     log.info("WebSocket heartbeat task stopped")
+
+    # Close Redis connection pool
+    await close_redis_pool()
 
 
 def create_app() -> FastAPI:
