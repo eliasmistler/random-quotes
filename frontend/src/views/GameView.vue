@@ -410,12 +410,15 @@ function getPlayerNickname(playerId: string): string {
             <div class="tiles-grid">
               <button
                 v-for="(tile, index) in gameStore.myTiles"
-                :key="index"
+                :key="tile + '-' + index"
                 class="tile"
-                :class="{
-                  selected: tilesInAnswer.has(tile),
-                  dragging: draggedTile === tile
-                }"
+                :class="[
+                  'tile-style-' + getTileStyleIndex(tile),
+                  {
+                    selected: tilesInAnswer.has(tile),
+                    dragging: draggedTile === tile
+                  }
+                ]"
                 :draggable="!tilesInAnswer.has(tile)"
                 @click="toggleTile(tile)"
                 @dragstart="!tilesInAnswer.has(tile) && handleDragStart($event, tile)"
