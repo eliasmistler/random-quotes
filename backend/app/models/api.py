@@ -44,6 +44,12 @@ class WinnerVoteRequest(BaseModel):
     winner_player_id: str
 
 
+class ReorderTilesRequest(BaseModel):
+    """Request to reorder player's word tiles."""
+
+    tile_order: list[str]
+
+
 class GameCreatedResponse(BaseModel):
     """Response after creating a new game."""
 

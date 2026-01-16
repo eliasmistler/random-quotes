@@ -20,6 +20,9 @@ export const useGameStore = defineStore('game', () => {
   const chatMessages = ref<ChatMessage[]>([])
   const unreadChatCount = ref(0)
 
+  // Local optimistic state for tile reordering during drag
+  const localTileOrder = ref<string[] | null>(null)
+
   const isInGame = computed(() => gameId.value !== null)
   const currentPlayer = computed(() => players.value.find((p) => p.id === playerId.value))
   const isHost = computed(() => currentPlayer.value?.is_host ?? false)
@@ -44,6 +47,10 @@ export const useGameStore = defineStore('game', () => {
   const hasCastWinnerVote = computed(() => currentRound.value?.has_cast_winner_vote ?? false)
   const overruleVoteCount = computed(() => Object.keys(currentRound.value?.overrule_votes ?? {}).length)
   const winnerVoteCount = computed(() => Object.keys(currentRound.value?.winner_votes ?? {}).length)
+
+  // Display tiles uses local order during drag, falls back to server state
+  const displayTiles = computed(() => localTileOrder.value ?? myTiles.value)
+
   function connectWebSocket() {
     if (!gameId.value || !playerId.value) return
 
@@ -137,6 +144,8 @@ export const useGameStore = defineStore('game', () => {
       inviteCode.value = state.invite_code
       currentRound.value = state.current_round
       config.value = state.config
+      // Clear local tile order on server update
+      localTileOrder.value = null
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Unknown error'
     }
@@ -173,6 +182,33 @@ export const useGameStore = defineStore('game', () => {
       throw e
     } finally {
       isLoading.value = false
+    }
+  }
+
+  function setLocalTileOrder(order: string[]) {
+    localTileOrder.value = order
+  }
+
+  function clearLocalTileOrder() {
+    localTileOrder.value = null
+  }
+
+  async function reorderTiles(newOrder: string[]) {
+    if (!gameId.value || !playerId.value) return
+
+    // Optimistically update local state
+    localTileOrder.value = newOrder
+
+    try {
+      await api.reorderTiles(gameId.value, playerId.value, newOrder)
+      // Update myTiles to match the new order
+      myTiles.value = newOrder
+      localTileOrder.value = null
+    } catch (e) {
+      // Revert on error
+      localTileOrder.value = null
+      error.value = e instanceof Error ? e.message : 'Failed to reorder tiles'
+      throw e
     }
   }
 
@@ -380,11 +416,15 @@ export const useGameStore = defineStore('game', () => {
     hasCastWinnerVote,
     overruleVoteCount,
     winnerVoteCount,
+    displayTiles,
     createGame,
     joinGame,
     refreshGameState,
     startGame,
     submitResponse,
+    setLocalTileOrder,
+    clearLocalTileOrder,
+    reorderTiles,
     selectWinner,
     advanceRound,
     castOverruleVote,

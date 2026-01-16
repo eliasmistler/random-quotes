@@ -17,6 +17,23 @@ const draggedTile = ref<string | null>(null)
 const dragSource = ref<{ type: 'pool' | 'answer'; row?: number; index?: number } | null>(null)
 const dropTargetRow = ref<number | null>(null)
 
+// Pool reordering state
+const poolDragIndex = ref<number | null>(null)
+const poolDropIndex = ref<number | null>(null)
+const isReorderingPool = ref(false)
+
+// Display pool tiles with live preview during drag
+const displayPoolTiles = computed(() => {
+  const tiles = gameStore.displayTiles
+  if (poolDragIndex.value !== null && poolDropIndex.value !== null && isReorderingPool.value) {
+    const result = [...tiles]
+    const [draggedTile] = result.splice(poolDragIndex.value, 1)
+    result.splice(poolDropIndex.value, 0, draggedTile)
+    return result
+  }
+  return tiles
+})
+
 // Computed: all selected tiles flattened (for submission)
 const selectedTiles = computed(() => answerRows.value.flat())
 
@@ -199,6 +216,62 @@ function handleDropOnPool(e: DragEvent) {
   answerRows.value[srcRow]?.splice(srcIndex, 1)
 
   handleDragEnd()
+}
+
+// Pool reordering handlers
+function handlePoolReorderStart(e: DragEvent, index: number, tile: string) {
+  // Don't allow reordering if tile is in answer
+  if (tilesInAnswer.value.has(tile)) return
+
+  poolDragIndex.value = index
+  isReorderingPool.value = true
+  draggedTile.value = tile
+  dragSource.value = { type: 'pool' }
+
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', tile)
+  }
+}
+
+function handlePoolDragOver(e: DragEvent, index: number) {
+  e.preventDefault()
+  if (!isReorderingPool.value) return
+
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  // Update drop index for live preview
+  poolDropIndex.value = index
+}
+
+async function handlePoolDrop(e: DragEvent) {
+  e.preventDefault()
+  if (!isReorderingPool.value || poolDragIndex.value === null || poolDropIndex.value === null) {
+    handlePoolDragEnd()
+    return
+  }
+
+  // Only reorder if position actually changed
+  if (poolDragIndex.value !== poolDropIndex.value) {
+    const newOrder = [...displayPoolTiles.value]
+    try {
+      await gameStore.reorderTiles(newOrder)
+    } catch (err) {
+      console.error('Failed to reorder tiles:', err)
+    }
+  }
+
+  handlePoolDragEnd()
+}
+
+function handlePoolDragEnd() {
+  poolDragIndex.value = null
+  poolDropIndex.value = null
+  isReorderingPool.value = false
+  draggedTile.value = null
+  dragSource.value = null
 }
 
 function removeTileFromAnswer(rowIndex: number, tileIndex: number) {
@@ -407,22 +480,24 @@ function getPlayerNickname(playerId: string): string {
             @dragover.prevent
             @drop="handleDropOnPool($event)"
           >
-            <div class="tiles-grid">
+            <div class="tiles-grid" @drop="handlePoolDrop($event)">
               <button
-                v-for="(tile, index) in gameStore.myTiles"
-                :key="tile + '-' + index"
+                v-for="(tile, index) in displayPoolTiles"
+                :key="'pool-' + index + '-' + tile"
                 class="tile"
                 :class="[
                   'tile-style-' + getTileStyleIndex(tile),
                   {
                     selected: tilesInAnswer.has(tile),
-                    dragging: draggedTile === tile
+                    dragging: draggedTile === tile,
+                    'drop-preview': isReorderingPool && poolDropIndex === index && poolDragIndex !== index
                   }
                 ]"
                 :draggable="!tilesInAnswer.has(tile)"
                 @click="toggleTile(tile)"
-                @dragstart="!tilesInAnswer.has(tile) && handleDragStart($event, tile)"
-                @dragend="handleDragEnd"
+                @dragstart="handlePoolReorderStart($event, index, tile)"
+                @dragover="handlePoolDragOver($event, index)"
+                @dragend="handlePoolDragEnd"
               >
                 {{ tile }}
               </button>
@@ -1075,6 +1150,22 @@ function getPlayerNickname(playerId: string): string {
 /* Dragging state for tiles */
 .tile.dragging {
   opacity: 0.5;
+}
+
+/* Drop preview indicator for pool reordering */
+.tile.drop-preview {
+  position: relative;
+}
+
+.tile.drop-preview::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent-red);
+  border-radius: 2px;
 }
 
 /* ==========================================================================

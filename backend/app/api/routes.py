@@ -17,6 +17,7 @@ from app.models.api import (
     JoinGameRequest,
     OverruleVoteRequest,
     PlayerInfo,
+    ReorderTilesRequest,
     RoundInfo,
     SelectWinnerRequest,
     SubmissionInfo,
@@ -39,6 +40,7 @@ from app.services.game import (
     cast_winner_vote,
     create_game,
     get_non_judge_player_ids,
+    reorder_player_tiles,
     restart_game,
     select_winner,
     start_game,
@@ -307,6 +309,32 @@ async def submit_response_endpoint(game_id: str, player_id: str, request: Submit
         raise HTTPException(
             status_code=400,
             detail={"error": str(e), "code": "CANNOT_SUBMIT"},
+        ) from e
+
+
+@router.post(
+    "/games/{game_id}/reorder-tiles",
+    response_model=ActionResponse,
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+async def reorder_tiles_endpoint(game_id: str, player_id: str, request: ReorderTilesRequest) -> ActionResponse:
+    """Reorder the player's word tiles."""
+    game = await get_game(game_id)
+    if not game:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Game not found", "code": "GAME_NOT_FOUND"},
+        )
+
+    try:
+        updated_game = reorder_player_tiles(game, player_id, request.tile_order)
+        await save_game(updated_game)
+        # No broadcast needed - only affects the player who reordered
+        return ActionResponse(success=True, message="Tiles reordered")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": str(e), "code": "CANNOT_REORDER"},
         ) from e
 
 
