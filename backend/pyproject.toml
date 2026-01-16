@@ -8,6 +8,7 @@ dependencies = [
     "pydantic",
     "pydantic-settings>=2.12.0",
     "pyyaml>=6.0",
+    "redis[hiredis]>=5.0.0",
     "toolz",
     "uvicorn>=0.40.0",
     "websockets>=15.0",
@@ -15,15 +16,18 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "fakeredis>=2.26.0",
     "httpx>=0.28.1",
     "pre-commit>=4.5.1",
     "pytest",
+    "pytest-asyncio>=0.24.0",
     "ruff>=0.14.11",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+asyncio_mode = "auto"
 
 [tool.ruff]
 line-length = 120

@@ -20,21 +20,52 @@ module "vpc" {
   aws_region   = var.aws_region
 }
 
+# Security Group for ECS Tasks (created here to avoid circular dependency)
+resource "aws_security_group" "ecs_tasks" {
+  name        = "${local.name_prefix}-ecs-tasks"
+  description = "Security group for ECS tasks"
+  vpc_id      = module.vpc.vpc_id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${local.name_prefix}-ecs-tasks"
+  }
+}
+
+# ElastiCache Redis for game state persistence
+module "elasticache" {
+  source = "./modules/elasticache"
+
+  project_name               = var.project_name
+  environment                = var.environment
+  vpc_id                     = module.vpc.vpc_id
+  subnet_ids                 = module.vpc.public_subnet_ids
+  allowed_security_group_ids = [aws_security_group.ecs_tasks.id]
+}
+
 # ECS Cluster, Services, and ALB
 module "ecs" {
   source = "./modules/ecs"
 
-  project_name       = var.project_name
-  environment        = var.environment
-  vpc_id             = module.vpc.vpc_id
-  public_subnet_ids  = module.vpc.public_subnet_ids
-  backend_image      = module.ecr.backend_repository_url
-  frontend_image     = module.ecr.frontend_repository_url
-  backend_cpu        = var.backend_cpu
-  backend_memory     = var.backend_memory
-  frontend_cpu       = var.frontend_cpu
-  frontend_memory    = var.frontend_memory
-  desired_count      = var.desired_count
+  project_name                = var.project_name
+  environment                 = var.environment
+  vpc_id                      = module.vpc.vpc_id
+  public_subnet_ids           = module.vpc.public_subnet_ids
+  backend_image               = module.ecr.backend_repository_url
+  frontend_image              = module.ecr.frontend_repository_url
+  backend_cpu                 = var.backend_cpu
+  backend_memory              = var.backend_memory
+  frontend_cpu                = var.frontend_cpu
+  frontend_memory             = var.frontend_memory
+  desired_count               = var.desired_count
+  redis_url                   = module.elasticache.redis_url
+  ecs_tasks_security_group_id = aws_security_group.ecs_tasks.id
 }
 
 # GitHub OIDC Provider for CI/CD

@@ -2,6 +2,19 @@
 # Usage: docker compose up --build
 
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   backend:
     build:
       context: ./backend
@@ -11,6 +24,10 @@ services:
     environment:
       - DEBUG=true
       - CORS_ORIGINS=http://localhost,http://localhost:80,http://localhost:5173
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 10s
@@ -36,3 +53,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+
+volumes:
+  redis_data:

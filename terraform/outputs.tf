@@ -22,3 +22,13 @@ output "github_actions_role_arn" {
   description = "IAM role ARN for GitHub Actions (use as AWS_ROLE_ARN secret)"
   value       = aws_iam_role.github_actions.arn
 }
+
+output "redis_endpoint" {
+  description = "Redis ElastiCache endpoint"
+  value       = module.elasticache.redis_endpoint
+}
+
+output "redis_url" {
+  description = "Redis connection URL (configured automatically in ECS)"
+  value       = module.elasticache.redis_url
+}
