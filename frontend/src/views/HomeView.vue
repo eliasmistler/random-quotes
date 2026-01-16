@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
+import { loadSession, clearSession, type GameSession } from '@/utils/session'
+import * as api from '@/api/game'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -10,6 +12,11 @@ const nickname = ref('')
 const inviteCode = ref('')
 const isCreating = ref(false)
 const isJoining = ref(false)
+
+// Rejoin dialog state
+const showRejoinDialog = ref(false)
+const pendingSession = ref<GameSession | null>(null)
+const isRejoining = ref(false)
 
 async function handleCreateGame() {
   if (!nickname.value.trim()) return
@@ -38,6 +45,71 @@ async function handleJoinGame() {
     isJoining.value = false
   }
 }
+
+async function checkExistingSession() {
+  // Don't check if already in a game
+  if (gameStore.isInGame) return
+
+  const session = loadSession()
+  if (!session) return
+
+  try {
+    // Validate session with backend
+    const state = await api.getGameState(session.gameId, session.playerId)
+
+    // If game is over, don't offer to rejoin
+    if (state.phase === 'game_over') {
+      clearSession()
+      return
+    }
+
+    // Session is valid - show rejoin dialog
+    pendingSession.value = session
+    showRejoinDialog.value = true
+  } catch {
+    // Game or player not found - clear stale session
+    clearSession()
+  }
+}
+
+async function handleRejoin() {
+  if (!pendingSession.value) return
+
+  isRejoining.value = true
+  try {
+    const phase = await gameStore.reconnectToGame(
+      pendingSession.value.gameId,
+      pendingSession.value.playerId
+    )
+
+    showRejoinDialog.value = false
+
+    // Navigate based on phase
+    if (phase === 'lobby') {
+      router.push('/lobby')
+    } else {
+      router.push('/game')
+    }
+  } catch (e) {
+    console.error('Failed to rejoin game:', e)
+    // Clear invalid session
+    clearSession()
+    showRejoinDialog.value = false
+    pendingSession.value = null
+  } finally {
+    isRejoining.value = false
+  }
+}
+
+function handleStartFresh() {
+  clearSession()
+  showRejoinDialog.value = false
+  pendingSession.value = null
+}
+
+onMounted(() => {
+  checkExistingSession()
+})
 
 // Letter styles for the ransom note title effect - split into two words
 interface RansomLetter {
@@ -156,6 +228,34 @@ const notesLetters: RansomLetter[] = [
             class="join-btn"
           >
             {{ isJoining ? '...' : 'Join' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rejoin Dialog -->
+    <div v-if="showRejoinDialog" class="rejoin-overlay">
+      <div class="rejoin-dialog">
+        <div class="tape-strip"></div>
+        <h2>Rejoin Game?</h2>
+        <p class="rejoin-message">
+          You were playing as <strong>{{ pendingSession?.nickname }}</strong>
+        </p>
+        <p class="game-code">Game: {{ pendingSession?.inviteCode }}</p>
+        <div class="dialog-actions">
+          <button
+            @click="handleRejoin"
+            class="rejoin-btn"
+            :disabled="isRejoining"
+          >
+            {{ isRejoining ? 'Rejoining...' : 'Rejoin Game' }}
+          </button>
+          <button
+            @click="handleStartFresh"
+            class="fresh-btn"
+            :disabled="isRejoining"
+          >
+            Start Fresh
           </button>
         </div>
       </div>
@@ -578,5 +678,122 @@ const notesLetters: RansomLetter[] = [
   0%, 100% { transform: translateX(0); }
   10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
   20%, 40%, 60%, 80% { transform: translateX(3px); }
+}
+
+/* ==========================================================================
+   REJOIN DIALOG
+   ========================================================================== */
+
+.rejoin-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease;
+}
+
+.rejoin-dialog {
+  background: var(--scrap-white);
+  padding: 2rem 1.5rem;
+  max-width: 360px;
+  width: 100%;
+  position: relative;
+  box-shadow: var(--shadow-lifted);
+  transform: rotate(-1deg);
+  animation: dialogSlideIn 0.3s var(--animation-smooth);
+}
+
+.rejoin-dialog h2 {
+  font-family: var(--font-headline-1);
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.rejoin-message {
+  font-family: var(--font-typewriter);
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.rejoin-message strong {
+  color: var(--accent-red);
+}
+
+.game-code {
+  font-family: var(--font-typewriter);
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--ink-grey);
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.1em;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dialog-actions .rejoin-btn {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1rem;
+  background: var(--accent-red);
+  color: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-paper);
+  letter-spacing: 0.06em;
+}
+
+.dialog-actions .rejoin-btn:hover:not(:disabled) {
+  background: var(--accent-red-dark);
+  transform: scale(1.02);
+}
+
+.dialog-actions .rejoin-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dialog-actions .fresh-btn {
+  width: 100%;
+  padding: 0.875rem;
+  font-size: 0.9rem;
+  background: transparent;
+  color: var(--ink-charcoal);
+  border: 2px solid var(--ink-charcoal);
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+
+.dialog-actions .fresh-btn:hover:not(:disabled) {
+  background: var(--scrap-newsprint);
+}
+
+.dialog-actions .fresh-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dialogSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) rotate(-1deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(-1deg);
+  }
 }
 </style>

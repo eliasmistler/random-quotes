@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import type { PlayerInfo, GamePhase, RoundInfo, GameConfig, ChatMessage } from '@/types/game'
 import * as api from '@/api/game'
 import { GameWebSocket } from '@/services/websocket'
+import { saveSession, clearSession } from '@/utils/session'
 
 export const useGameStore = defineStore('game', () => {
   const ws = new GameWebSocket()
@@ -85,6 +86,12 @@ export const useGameStore = defineStore('game', () => {
       // Fetch full game state to populate config
       await refreshGameState()
       connectWebSocket()
+      saveSession({
+        gameId: response.game_id,
+        playerId: response.player_id,
+        nickname: response.player.nickname,
+        inviteCode: response.invite_code,
+      })
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Unknown error'
       throw e
@@ -105,6 +112,12 @@ export const useGameStore = defineStore('game', () => {
       await refreshGameState()
       await loadChatHistory()
       connectWebSocket()
+      saveSession({
+        gameId: response.game_id,
+        playerId: response.player_id,
+        nickname,
+        inviteCode: code.toUpperCase(),
+      })
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Unknown error'
       throw e
@@ -294,6 +307,7 @@ export const useGameStore = defineStore('game', () => {
 
   function leaveGame() {
     ws.disconnect()
+    clearSession()
     gameId.value = null
     playerId.value = null
     inviteCode.value = null
@@ -305,6 +319,36 @@ export const useGameStore = defineStore('game', () => {
     error.value = null
     chatMessages.value = []
     unreadChatCount.value = 0
+  }
+
+  async function reconnectToGame(sessionGameId: string, sessionPlayerId: string): Promise<GamePhase | null> {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      // Set IDs first so other methods work
+      gameId.value = sessionGameId
+      playerId.value = sessionPlayerId
+
+      // Fetch full game state
+      await refreshGameState()
+
+      // Load chat history
+      await loadChatHistory()
+
+      // Connect WebSocket
+      connectWebSocket()
+
+      return phase.value
+    } catch (e) {
+      // Clear invalid session data
+      gameId.value = null
+      playerId.value = null
+      error.value = e instanceof Error ? e.message : 'Unknown error'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
   }
 
   return {
@@ -348,6 +392,7 @@ export const useGameStore = defineStore('game', () => {
     restartGame,
     addBot,
     leaveGame,
+    reconnectToGame,
     loadChatHistory,
     sendChatMessage,
     markChatAsRead,
