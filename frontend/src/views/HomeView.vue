@@ -120,21 +120,22 @@ interface RansomLetter {
   color?: string
 }
 
-const ransomLetters: RansomLetter[] = [
+const randomLetters: RansomLetter[] = [
   { char: 'R', font: 'headline-1', bg: 'cream', rotate: -3 },
   { char: 'A', font: 'headline-2', bg: 'yellow', rotate: 2 },
   { char: 'N', font: 'display-1', bg: 'pink', rotate: -1 },
-  { char: 'S', font: 'headline-3', bg: 'white', rotate: 1.5 },
+  { char: 'D', font: 'headline-3', bg: 'white', rotate: 1.5 },
   { char: 'O', font: 'headline-4', bg: 'blue', rotate: -2 },
   { char: 'M', font: 'body-2', bg: 'orange', rotate: 2.5 },
 ]
 
-const notesLetters: RansomLetter[] = [
-  { char: 'N', font: 'headline-6', bg: 'newsprint', rotate: -1.5 },
-  { char: 'O', font: 'display-2', bg: 'cream', rotate: 3, color: 'red' },
-  { char: 'T', font: 'headline-2', bg: 'yellow', rotate: -2 },
-  { char: 'E', font: 'headline-1', bg: 'green', rotate: 1 },
-  { char: 'S', font: 'display-1', bg: 'pink', rotate: -2.5 },
+const quotesLetters: RansomLetter[] = [
+  { char: 'Q', font: 'headline-6', bg: 'newsprint', rotate: -1.5 },
+  { char: 'U', font: 'display-2', bg: 'cream', rotate: 3, color: 'red' },
+  { char: 'O', font: 'headline-2', bg: 'yellow', rotate: -2 },
+  { char: 'T', font: 'headline-1', bg: 'green', rotate: 1 },
+  { char: 'E', font: 'display-1', bg: 'pink', rotate: -2.5 },
+  { char: 'S', font: 'headline-3', bg: 'blue', rotate: 2 },
 ]
 </script>
 
@@ -144,8 +145,8 @@ const notesLetters: RansomLetter[] = [
     <h1 class="ransom-title">
       <span class="word">
         <span
-          v-for="(letter, index) in ransomLetters"
-          :key="'ransom-' + index"
+          v-for="(letter, index) in randomLetters"
+          :key="'random-' + index"
           class="letter"
           :class="[
             letter.font ? `font-${letter.font}` : '',
@@ -160,8 +161,8 @@ const notesLetters: RansomLetter[] = [
       </span>
       <span class="word">
         <span
-          v-for="(letter, index) in notesLetters"
-          :key="'notes-' + index"
+          v-for="(letter, index) in quotesLetters"
+          :key="'quotes-' + index"
           class="letter"
           :class="[
             letter.font ? `font-${letter.font}` : '',
@@ -170,14 +171,14 @@ const notesLetters: RansomLetter[] = [
           ]"
           :style="{
             transform: `rotate(${letter.rotate}deg)`,
-            animationDelay: `${(index + ransomLetters.length) * 0.05}s`
+            animationDelay: `${(index + randomLetters.length) * 0.05}s`
           }"
         >{{ letter.char }}</span>
       </span>
     </h1>
 
     <p class="subtitle">
-      <span class="subtitle-inner">A party game of questionable answers</span>
+      <span class="subtitle-inner">The Word Heist of the Century</span>
     </p>
 
     <!-- Main form card with tape effect -->
