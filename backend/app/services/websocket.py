@@ -120,7 +120,7 @@ class ConnectionManager:
                     try:
                         await websocket.send_json(message)
                     except Exception as e:
-                        print(f"Error broadcasting to connection: {e}")
+                        log.warning("Error broadcasting to connection: %s", e)
 
     def get_connected_players(self, game_id: str) -> list[str]:
         """Get list of currently connected player IDs for a game.
