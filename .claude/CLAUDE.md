@@ -25,7 +25,7 @@
 ## Project Structure
 
 ```
-ransom-notes/
+random-quotes/
 ├── backend/                 # Python backend (FastAPI)
 │   ├── app/
 │   │   ├── api/            # API routes
@@ -126,22 +126,22 @@ Each agent works in its own worktree directory:
 
 ```
 PycharmProjects/
-├── ransom-notes/              # Main repo (master branch)
-├── ransom-notes-agent1/       # Agent 1's worktree
-├── ransom-notes-agent2/       # Agent 2's worktree
-└── ransom-notes-agent3/       # Agent 3's worktree
+├── random-quotes/              # Main repo (master branch)
+├── random-quotes-agent1/       # Agent 1's worktree
+├── random-quotes-agent2/       # Agent 2's worktree
+└── random-quotes-agent3/       # Agent 3's worktree
 ```
 
 ### Setting Up a New Agent Worktree
 
-From the main repo directory (`ransom-notes/`):
+From the main repo directory (`random-quotes/`):
 
 ```bash
 # Create a new branch and worktree for an agent
-git worktree add ../ransom-notes-<agent-name> -b ransom-notes-<agent-name>
+git worktree add ../random-quotes-<agent-name> -b random-quotes-<agent-name>
 
 # Example for agent2:
-git worktree add ../ransom-notes-agent2 -b ransom-notes-agent2
+git worktree add ../random-quotes-agent2 -b random-quotes-agent2
 ```
 
 ### Agent Workflow
@@ -150,7 +150,7 @@ git worktree add ../ransom-notes-agent2 -b ransom-notes-agent2
 
 1. **Work in your assigned worktree directory:**
    ```bash
-   cd ../ransom-notes-<agent-name>
+   cd ../random-quotes-<agent-name>
    ```
 
 2. **Make commits as needed** on your branch (each worktree has its own branch)
@@ -165,7 +165,7 @@ git worktree add ../ransom-notes-agent2 -b ransom-notes-agent2
      ```
    - Push your branch and create PR:
      ```bash
-     git push -u origin ransom-notes-<agent-name>
+     git push -u origin random-quotes-<agent-name>
      gh pr create --fill --base master
      gh pr merge --merge --delete-branch
      ```
@@ -182,8 +182,8 @@ When an agent is no longer needed:
 
 ```bash
 # From the main repo directory
-git worktree remove ../ransom-notes-<agent-name>
-git branch -d ransom-notes-<agent-name>
+git worktree remove ../random-quotes-<agent-name>
+git branch -d random-quotes-<agent-name>
 ```
 
 ### Important Notes
@@ -192,7 +192,7 @@ git branch -d ransom-notes-<agent-name>
 - Worktrees share the same `.git` database, so branches are visible across all worktrees
 - Always work in your assigned worktree, never directly on master in the main repo
 - Keep changes small and merge frequently to minimize rebase conflicts
-- The main `ransom-notes/` directory should stay on master for reference
+- The main `random-quotes/` directory should stay on master for reference
 
 ### Code Style
 

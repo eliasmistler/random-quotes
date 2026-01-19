@@ -8,7 +8,7 @@ on:
 
 env:
   AWS_REGION: eu-central-1
-  ECS_CLUSTER: ransom-notes-prod
+  ECS_CLUSTER: random-quotes-prod
 
 jobs:
   backend-tests:
@@ -213,8 +213,8 @@ jobs:
           context: ./backend
           push: true
           tags: |
-            ${{ steps.login-ecr.outputs.registry }}/ransom-notes-backend:${{ github.sha }}
-            ${{ steps.login-ecr.outputs.registry }}/ransom-notes-backend:latest
+            ${{ steps.login-ecr.outputs.registry }}/random-quotes-backend:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/random-quotes-backend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -224,8 +224,8 @@ jobs:
           context: ./frontend
           push: true
           tags: |
-            ${{ steps.login-ecr.outputs.registry }}/ransom-notes-frontend:${{ github.sha }}
-            ${{ steps.login-ecr.outputs.registry }}/ransom-notes-frontend:latest
+            ${{ steps.login-ecr.outputs.registry }}/random-quotes-frontend:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/random-quotes-frontend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
