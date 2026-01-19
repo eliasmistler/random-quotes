@@ -558,25 +558,38 @@ def determine_voted_winner(game: Game) -> Game:
 # =============================================================================
 
 
-def get_next_bot_number(game: Game) -> int:
-    """Get the next bot number based on existing bots in the game."""
-    existing_bots = [p for p in game.players.values() if p.is_bot]
-    if not existing_bots:
-        return 1
-    # Extract numbers from bot nicknames like "Bot 1", "Bot 2", etc.
-    numbers = []
-    for bot in existing_bots:
-        if bot.nickname.startswith("Bot "):
-            try:
-                numbers.append(int(bot.nickname[4:]))
-            except ValueError:
-                pass
-    return max(numbers, default=0) + 1
+BOT_NAMES = [
+    "Pixel",
+    "Noodles",
+    "Ziggy",
+    "Waffles",
+    "Sprocket",
+    "Mochi",
+    "Biscuit",
+    "Cosmo",
+    "Pepper",
+    "Fizz",
+    "Nugget",
+    "Turbo",
+    "Pickle",
+    "Glitch",
+    "Beans",
+]
 
 
-def create_bot_player(bot_number: int) -> Player:
-    """Create a bot player with the given number."""
-    return Player(nickname=f"Bot {bot_number}", is_host=False, is_bot=True)
+def get_available_bot_name(game: Game) -> str:
+    """Get an available bot name that isn't already taken."""
+    existing_nicknames = {p.nickname for p in game.players.values()}
+    for name in BOT_NAMES:
+        if name not in existing_nicknames:
+            return name
+    # Fallback if all names are taken
+    return f"Bot {len([p for p in game.players.values() if p.is_bot]) + 1}"
+
+
+def create_bot_player(name: str) -> Player:
+    """Create a bot player with the given name."""
+    return Player(nickname=name, is_host=False, is_bot=True)
 
 
 def add_bot_to_game(game: Game) -> Game:
@@ -591,8 +604,8 @@ def add_bot_to_game(game: Game) -> Game:
     if len(game.players) >= game.config.max_players:
         raise ValueError("Cannot add bot: game is full")
 
-    bot_number = get_next_bot_number(game)
-    bot = create_bot_player(bot_number)
+    bot_name = get_available_bot_name(game)
+    bot = create_bot_player(bot_name)
     updated_players = {**game.players, bot.id: bot}
     return game.model_copy(update={"players": updated_players})
 
