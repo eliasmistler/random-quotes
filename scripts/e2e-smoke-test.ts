@@ -2,7 +2,7 @@ import { test, expect, BrowserContext, Page } from '@playwright/test';
 import * as readline from 'readline';
 
 /**
- * E2E Smoke Test for Ransom Notes
+ * E2E Smoke Test for Random Quotes
  *
  * Simulates a complete 2-player game from start to finish.
  * - Host creates game and gets invite code
@@ -96,7 +96,7 @@ async function checkPause(): Promise<void> {
 // Initialize interactive mode
 setupInteractiveMode();
 
-test.describe('Ransom Notes - Full Game Smoke Test', () => {
+test.describe('Random Quotes - Full Game Smoke Test', () => {
   let host: Player;
   let guest: Player;
   let inviteCode: string;

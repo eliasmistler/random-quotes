@@ -1,4 +1,4 @@
-const SESSION_KEY = 'ransom-notes-session'
+const SESSION_KEY = 'random-quotes-session'
 
 export interface GameSession {
   gameId: string

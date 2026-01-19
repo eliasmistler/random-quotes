@@ -1,1 +1,1 @@
-"""Pydantic models for the Ransom Notes API."""
+"""Pydantic models for the Random Quotes API."""

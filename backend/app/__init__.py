@@ -1,1 +1,1 @@
-"""Ransom Notes API application."""
+"""Random Quotes API application."""

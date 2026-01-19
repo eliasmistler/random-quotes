@@ -1,5 +1,5 @@
 #!/bin/bash
-# Smoke test script for ransom-notes
+# Smoke test script for random-quotes
 # Builds and runs docker-compose, then verifies services are healthy
 
 set -e

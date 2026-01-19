@@ -1,12 +1,12 @@
-# Ransom Notes
+# Random Quotes
 
-A digital implementation of the popular party game Ransom Notes, featuring a TypeScript frontend and Python backend.
+A digital party game based on a popular creative word game, featuring a TypeScript frontend and Python backend.
 
 ## About the Game
 
-Ransom Notes is a creative party game where players construct responses to prompts using a limited set of random word tiles. Each round, a prompt card is revealed and players must piece together the funniest or most fitting answer using only the words available to them. A rotating judge picks the best response, and the first player to win five rounds wins the game.
+Random Quotes is a creative party game where players construct responses to prompts using a limited set of random word tiles. Each round, a prompt card is revealed and players must piece together the funniest or most fitting answer using only the words available to them. A rotating judge picks the best response, and the first player to win five rounds wins the game.
 
-The game captures the humor and creativity of crafting messages from mismatched words—like a classic ransom note—leading to hilarious and unexpected answers.
+The game captures the humor and creativity of crafting messages from mismatched words, leading to hilarious and unexpected answers.
 
 ## Tech Stack
 
