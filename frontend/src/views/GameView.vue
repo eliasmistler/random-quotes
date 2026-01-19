@@ -1770,9 +1770,10 @@ function getPlayerNickname(playerId: string): string {
 }
 
 .tile-style-3 {
-  font-family: var(--font-body-2);
+  font-family: var(--font-body-1);
   background-color: var(--scrap-newsprint);
   transform: rotate(-1deg);
+  font-weight: 700;
 }
 
 .tile-style-4 {
@@ -1813,7 +1814,7 @@ function getPlayerNickname(playerId: string): string {
 }
 
 .tile-style-10 {
-  font-family: var(--font-display-2);
+  font-family: var(--font-display-4);
   background-color: var(--scrap-pink);
   transform: rotate(2.5deg);
 }
@@ -1826,15 +1827,17 @@ function getPlayerNickname(playerId: string): string {
 }
 
 .tile-style-12 {
-  font-family: var(--font-body-2);
+  font-family: var(--font-body-1);
   background-color: var(--scrap-blue);
   transform: rotate(1.5deg);
+  font-weight: 700;
 }
 
 .tile-style-13 {
-  font-family: var(--font-blackletter);
+  font-family: var(--font-headline-5);
   background-color: var(--scrap-cream);
   transform: rotate(-2deg);
+  font-weight: 700;
 }
 
 .tile-style-14 {
