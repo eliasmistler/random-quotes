@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # Configuration - can be overridden by environment variables
 IDLE_TIMEOUT_SECONDS = int(os.environ.get("LLM_IDLE_TIMEOUT", "300"))  # 5 minutes
 HEALTH_CHECK_INTERVAL = int(os.environ.get("LLM_HEALTH_CHECK_INTERVAL", "30"))  # seconds
-CONTAINER_NAME = os.environ.get("LLM_CONTAINER_NAME", "ransom-notes-ollama")
+CONTAINER_NAME = os.environ.get("LLM_CONTAINER_NAME", "random-quotes-ollama")
 OLLAMA_IMAGE = os.environ.get("OLLAMA_IMAGE", "ollama/ollama:latest")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://ollama:11434")

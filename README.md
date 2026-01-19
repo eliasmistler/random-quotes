@@ -27,7 +27,7 @@ The game captures the humor and creativity of crafting messages from mismatched 
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd ransom-notes
+cd random-quotes
 
 # Install backend dependencies
 cd backend

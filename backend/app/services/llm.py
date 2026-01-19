@@ -101,7 +101,7 @@ async def generate_bot_submission(prompt_text: str, available_tiles: list[str]) 
 
     tiles_str = ", ".join(f'"{tile}"' for tile in available_tiles)
 
-    llm_prompt = f"""You are playing a party game called "Ransom Notes" where you must create \
+    llm_prompt = f"""You are playing a party game called "Random Quotes" where you must create \
 funny or clever answers using word tiles cut from magazines.
 
 PROMPT: "{prompt_text}"
@@ -198,7 +198,7 @@ async def generate_bot_judgment(prompt_text: str, submissions: dict[str, list[st
         answer = " ".join(tiles)
         submissions_text += f'{i}. "{answer}"\n'
 
-    llm_prompt = f"""You are judging a party game called "Ransom Notes" where players \
+    llm_prompt = f"""You are judging a party game called "Random Quotes" where players \
 create funny answers using word tiles.
 
 PROMPT: "{prompt_text}"

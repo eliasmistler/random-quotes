@@ -142,7 +142,7 @@ const quotesLetters: RansomLetter[] = [
 <template>
   <main class="home">
     <!-- Random Quotes Title - Each letter is a cutout -->
-    <h1 class="ransom-title">
+    <h1 class="logo-title">
       <span class="word">
         <span
           v-for="(letter, index) in randomLetters"
@@ -296,7 +296,7 @@ const quotesLetters: RansomLetter[] = [
    RANDOM QUOTES TITLE - Each letter is a paper cutout
    ========================================================================== */
 
-.ransom-title {
+.logo-title {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -306,7 +306,7 @@ const quotesLetters: RansomLetter[] = [
 }
 
 @media (min-width: 640px) {
-  .ransom-title {
+  .logo-title {
     gap: 0.25rem;
     margin-bottom: 1.5rem;
   }

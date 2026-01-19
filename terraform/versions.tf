@@ -10,7 +10,7 @@ terraform {
 
   # Uncomment and configure for remote state storage
   # backend "s3" {
-  #   bucket         = "ransom-notes-terraform-state"
+  #   bucket         = "random-quotes-terraform-state"
   #   key            = "prod/terraform.tfstate"
   #   region         = "eu-central-1"
   #   encrypt        = true
