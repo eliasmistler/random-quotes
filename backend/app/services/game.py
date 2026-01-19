@@ -1,4 +1,4 @@
-"""Game logic services for Ransom Notes.
+"""Game logic services for Random Quotes.
 
 This module contains pure functions implementing the game logic.
 """

@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 
 export type ThemeMode = 'system' | 'light' | 'dark'
 
-const STORAGE_KEY = 'ransom-notes-theme'
+const STORAGE_KEY = 'random-quotes-theme'
 
 export const useThemeStore = defineStore('theme', () => {
   const theme = ref<ThemeMode>(getStoredTheme())

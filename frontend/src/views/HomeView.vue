@@ -111,7 +111,7 @@ onMounted(() => {
   checkExistingSession()
 })
 
-// Letter styles for the ransom note title effect - split into two words
+// Letter styles for the magazine cutout title effect - split into two words
 interface RansomLetter {
   char: string
   font: string
@@ -141,7 +141,7 @@ const quotesLetters: RansomLetter[] = [
 
 <template>
   <main class="home">
-    <!-- Ransom Note Title - Each letter is a cutout -->
+    <!-- Random Quotes Title - Each letter is a cutout -->
     <h1 class="ransom-title">
       <span class="word">
         <span
@@ -293,7 +293,7 @@ const quotesLetters: RansomLetter[] = [
 }
 
 /* ==========================================================================
-   RANSOM NOTE TITLE - Each letter is a paper cutout
+   RANDOM QUOTES TITLE - Each letter is a paper cutout
    ========================================================================== */
 
 .ransom-title {

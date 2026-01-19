@@ -14,7 +14,7 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    app_name: str = "Ransom Notes API"
+    app_name: str = "Random Quotes API"
     debug: bool = False
     api_prefix: str = "/api"
 

@@ -1,1 +1,1 @@
-"""Business logic services for the Ransom Notes game."""
+"""Business logic services for the Random Quotes game."""

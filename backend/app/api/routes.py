@@ -1,4 +1,4 @@
-"""API routes for the Ransom Notes application."""
+"""API routes for the Random Quotes application."""
 
 import logging
 

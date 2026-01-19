@@ -1,4 +1,4 @@
-"""Core domain models for the Ransom Notes game."""
+"""Core domain models for the Random Quotes game."""
 
 from datetime import UTC, datetime
 from enum import Enum

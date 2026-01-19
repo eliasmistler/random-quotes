@@ -1,5 +1,5 @@
 #!/bin/bash
-# E2E Smoke Test for Ransom Notes
+# E2E Smoke Test for Random Quotes
 # Starts Docker Compose, runs a full browser-based game test, then cleans up
 #
 # Usage:

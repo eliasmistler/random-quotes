@@ -1,4 +1,4 @@
-# Root Terraform configuration for Ransom Notes on AWS ECS
+# Root Terraform configuration for Random Quotes on AWS ECS
 
 locals {
   name_prefix = "${var.project_name}-${var.environment}"

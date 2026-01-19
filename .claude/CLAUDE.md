@@ -1,4 +1,4 @@
-# Ransom Notes
+# Random Quotes
 
 ## Project Overview
 
